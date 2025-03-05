@@ -1,7 +1,28 @@
 [project]
 name = "us-imputation-benchmarking"
 version = "0.1.0"
-description = "Add your description here"
+description = "Benchmarking imputation models for US household survey data"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "statsmodels",
+    "microdf",
+    "scf",
+    "policyengine_us_data",
+    "scipy",
+    "rpy2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "flake8",
+    "black",
+    "isort",
+    "mypy",
+]
