@@ -2,9 +2,10 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional, Union, Collection, Any
+from us_imputation_benchmarking.models.imputer import Imputer
 
 
-class QuantReg:
+class QuantReg(Imputer):
     """
     Quantile Regression model for imputation.
 
@@ -13,16 +14,15 @@ class QuantReg:
     """
     def __init__(self):
         """Initialize the Quantile Regression model."""
+        super().__init__()
         self.models: Dict[float, Any] = {}
-        self.predictors: Optional[List[str]] = None
-        self.imputed_variables: Optional[List[str]] = None
 
     def fit(
         self,
         X: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
-        quantiles: List[float],
+        quantiles: Optional[List[float]] = None
     ) -> "QuantReg":
         """Fit the Quantile Regression model to the training data.
 
@@ -41,7 +41,11 @@ class QuantReg:
         Y = X[imputed_variables]
         X_with_const = sm.add_constant(X[predictors])
 
-        for q in quantiles:
+        if quantiles:
+            for q in quantiles:
+                self.models[q] = sm.QuantReg(Y, X_with_const).fit(q=q)
+        else:
+            q = np.random.uniform(0,1)
             self.models[q] = sm.QuantReg(Y, X_with_const).fit(q=q)
 
         return self

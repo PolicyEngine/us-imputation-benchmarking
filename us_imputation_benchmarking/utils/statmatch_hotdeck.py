@@ -46,7 +46,6 @@ def nnd_hotdeck_using_rpy2(
     donor: Optional[pd.DataFrame] = None,
     matching_variables: Optional[List[str]] = None,
     z_variables: Optional[List[str]] = None,
-    donor_classes: Optional[Union[str, List[str]]] = None,
 ) -> Tuple[Any, Any]:
     """Perform nearest neighbor distance hot deck matching using R's StatMatch package.
 
@@ -55,7 +54,6 @@ def nnd_hotdeck_using_rpy2(
         donor: DataFrame containing donor data.
         matching_variables: List of column names to use for matching.
         z_variables: List of column names to donate from donor to recipient.
-        donor_classes: Column name(s) used to define classes in the donor data.
 
     Returns:
         Tuple containing two fused datasets:
@@ -78,25 +76,12 @@ def nnd_hotdeck_using_rpy2(
     # Import R's StatMatch package
     StatMatch = importr("StatMatch")
 
-    # Check donor classes if provided
-    if isinstance(donor_classes, str):
-        assert donor_classes in receiver, "Donor class not present in receiver"
-        assert donor_classes in donor, "Donor class not present in donor"
-
     # Call the NND_hotdeck function from R
-    if donor_classes:
-        out_NND = StatMatch.NND_hotdeck(
-            data_rec=receiver,
-            data_don=donor,
-            match_vars=pd.Series(matching_variables),
-            don_class=pd.Series(donor_classes),
-        )
-    else:
-        out_NND = StatMatch.NND_hotdeck(
-            data_rec=receiver,
-            data_don=donor,
-            match_vars=pd.Series(matching_variables),
-        )
+    out_NND = StatMatch.NND_hotdeck(
+        data_rec=receiver,
+        data_don=donor,
+        match_vars=pd.Series(matching_variables),
+    )
 
     # Create the correct matching indices matrix for StatMatch.create_fused
     # Get all indices as 1-based (for R)

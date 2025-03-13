@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from typing import List, Dict, Union, Optional
+from us_imputation_benchmarking.models.imputer import Imputer
 
 
-class OLS:
+class OLS(Imputer):
     """
     Ordinary Least Squares regression model for imputation.
 
@@ -14,6 +15,7 @@ class OLS:
     """
     def __init__(self):
         """Initialize the OLS model."""
+        super().__init__()
         self.model = None
         self.predictors: Optional[List[str]] = None
         self.imputed_variables: Optional[List[str]] = None
@@ -44,7 +46,8 @@ class OLS:
         return self
 
     def predict(
-        self, test_X: pd.DataFrame, quantiles: List[float]
+        self, test_X: pd.DataFrame, 
+        quantiles: Optional[List[float]] = None
     ) -> Dict[float, np.ndarray]:
         """Predict values at specified quantiles using the OLS model.
 
@@ -58,7 +61,12 @@ class OLS:
         imputations: Dict[float, np.ndarray] = {}
         test_X_with_const = sm.add_constant(test_X[self.predictors])
 
-        for q in quantiles:
+        if quantiles:
+            for q in quantiles:
+                imputation = self._predict_quantile(test_X_with_const, q)
+                imputations[q] = imputation
+        else: 
+            q = np.random.uniform(0, 1)
             imputation = self._predict_quantile(test_X_with_const, q)
             imputations[q] = imputation
 

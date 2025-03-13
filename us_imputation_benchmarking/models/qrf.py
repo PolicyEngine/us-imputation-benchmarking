@@ -2,25 +2,25 @@ from us_imputation_benchmarking.utils import qrf
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Optional, Any, Union
+from us_imputation_benchmarking.models.imputer import Imputer
 from us_imputation_benchmarking.config import RANDOM_STATE
 
 
-class QRF:
+class QRF(Imputer):
     """
     Quantile Random Forest model for imputation.
 
     This model uses a Quantile Random Forest to predict quantiles.
     The underlying QRF implementation is from utils.qrf.
     """
-    def __init__(self, seed: int = RANDOM_STATE):
+    def __init__(self):
         """Initialize the QRF model.
 
         Args:
             seed: Random seed for reproducibility.
         """
-        self.qrf = qrf.QRF(seed=seed)
-        self.predictors: Optional[List[str]] = None
-        self.imputed_variables: Optional[List[str]] = None
+        super().__init__()
+        self.qrf = qrf.QRF(seed=RANDOM_STATE)
 
     def fit(
         self,
@@ -47,7 +47,8 @@ class QRF:
         return self
 
     def predict(
-        self, test_X: pd.DataFrame, quantiles: List[float]
+        self, test_X: pd.DataFrame, 
+        quantiles: Optional[List[float]] = None
     ) -> Dict[float, np.ndarray]:
         """Predict values at specified quantiles using the QRF model.
 
@@ -60,7 +61,14 @@ class QRF:
         """
         imputations: Dict[float, np.ndarray] = {}
 
-        for q in quantiles:
+        if quantiles:
+            for q in quantiles:
+                imputation = self.qrf.predict(
+                    test_X[self.predictors], mean_quantile=q
+                )
+                imputations[q] = imputation
+        else:
+            q = np.random.uniform(0, 1)
             imputation = self.qrf.predict(
                 test_X[self.predictors], mean_quantile=q
             )
