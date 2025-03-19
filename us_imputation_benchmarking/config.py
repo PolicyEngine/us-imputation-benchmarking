@@ -4,11 +4,24 @@ Configuration module for US imputation benchmarking.
 This module centralizes all constants and configuration parameters used across
 the package.
 """
-from typing import Dict, List, Any
-
+from typing import Any, Dict, List
 
 # Data configuration
-VALID_YEARS: List[int] = [1989, 1992, 1995, 1998, 2001, 2004, 2007, 2010, 2013, 2016, 2019]
+VALID_YEARS: List[int] = [
+    1989,
+    1992,
+    1995,
+    1998,
+    2001,
+    2004,
+    2007,
+    2010,
+    2013,
+    2016,
+    2019,
+]
+
+train_size, test_size = 0.8, 0.2
 
 # Analysis configuration
 QUANTILES: List[float] = [0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
@@ -21,7 +34,7 @@ DEFAULT_MODEL_PARAMS: Dict[str, Dict[str, Any]] = {
     "qrf": {},
     "quantreg": {},
     "ols": {},
-    "matching": {}
+    "matching": {},
 }
 
 # Plotting configuration

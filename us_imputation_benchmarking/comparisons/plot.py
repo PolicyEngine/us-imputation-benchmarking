@@ -1,8 +1,14 @@
+import os
+from typing import List, Optional
+
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
-from typing import List, Dict, Type, Union, Optional, Tuple
-from us_imputation_benchmarking.config import QUANTILES, PLOT_CONFIG
+
+from us_imputation_benchmarking.config import PLOT_CONFIG, QUANTILES
+from us_imputation_benchmarking.utils.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def plot_loss_comparison(
@@ -19,38 +25,85 @@ def plot_loss_comparison(
 
     Returns:
         Plotly figure object
+
+    Raises:
+        ValueError: If input DataFrame is invalid or missing required columns
+        RuntimeError: If plot creation or saving fails
     """
-    fig = px.bar(
-        loss_comparison_df,
-        x="Percentile",
-        y="Loss",
-        color="Method",
-        barmode="group",
-        title="Test Loss Across Quantiles for Different Imputation Methods",
-        labels={"Percentile": "Percentiles", "Loss": "Average Test Quantile Loss"},
+    logger.debug(
+        f"Creating loss comparison plot with DataFrame of shape "
+        f"{loss_comparison_df.shape}"
     )
-    
-    # Update layout for better appearance
-    fig.update_layout(
-        title_font_size=14,
-        xaxis_title_font_size=12,
-        yaxis_title_font_size=12,
-        legend_title="Method",
-        height=PLOT_CONFIG["height"],
-        width=PLOT_CONFIG["width"],
-    )
-    
-    # Add grid lines on y-axis
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(0,0,0,0.1)')
-    
-    # Save or show the plot
-    if save_path:
-        try:
-            fig.write_image(save_path)
-            html_path = save_path.replace(".png", ".html").replace(".jpg", ".html")
-            fig.write_html(html_path)
-            print(f"Plot saved to {save_path} and {html_path}")
-        except Exception as e:
-            print(f"Error saving plot: {e}")
-    
-    return fig
+
+    # Validate inputs
+    if loss_comparison_df is None or loss_comparison_df.empty:
+        logger.error("Empty or None DataFrame provided for plotting")
+        raise ValueError("loss_comparison_df must not be empty")
+
+    required_columns = ["Percentile", "Loss", "Method"]
+    missing_columns = [
+        col for col in required_columns if col not in loss_comparison_df.columns
+    ]
+    if missing_columns:
+        logger.error(f"Missing required columns for plotting: {missing_columns}")
+        raise ValueError(f"DataFrame must contain columns: {required_columns}")
+
+    if quantiles is None or len(quantiles) == 0:
+        logger.warning("Empty quantiles list provided, using default QUANTILES")
+        quantiles = QUANTILES
+
+    try:
+        logger.debug("Creating bar chart with plotly express")
+        fig = px.bar(
+            loss_comparison_df,
+            x="Percentile",
+            y="Loss",
+            color="Method",
+            barmode="group",
+            title="Test Loss Across Quantiles for Different Imputation Methods",
+            labels={"Percentile": "Percentiles", "Loss": "Average Test Quantile Loss"},
+        )
+
+        logger.debug("Updating plot layout")
+        # Update layout for better appearance
+        fig.update_layout(
+            title_font_size=14,
+            xaxis_title_font_size=12,
+            yaxis_title_font_size=12,
+            legend_title="Method",
+            height=PLOT_CONFIG["height"],
+            width=PLOT_CONFIG["width"],
+        )
+
+        # Add grid lines on y-axis
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)")
+
+        # Save or show the plot
+        if save_path:
+            try:
+                logger.info(f"Saving plot to {save_path}")
+
+                # Ensure directory exists
+                save_dir = os.path.dirname(save_path)
+                if save_dir and not os.path.exists(save_dir):
+                    logger.debug(f"Creating directory: {save_dir}")
+                    os.makedirs(save_dir, exist_ok=True)
+
+                # Save as image
+                fig.write_image(save_path)
+
+                # Also save as HTML for interactive viewing
+                html_path = save_path.replace(".png", ".html").replace(".jpg", ".html")
+                fig.write_html(html_path)
+
+                logger.info(f"Plot saved to {save_path} and {html_path}")
+            except Exception as e:
+                logger.error(f"Error saving plot: {str(e)}")
+                raise RuntimeError(f"Failed to save plot to {save_path}") from e
+
+        logger.debug("Plot creation completed successfully")
+        return fig
+
+    except Exception as e:
+        logger.error(f"Error creating loss comparison plot: {str(e)}")
+        raise RuntimeError(f"Failed to create loss comparison plot: {str(e)}") from e
