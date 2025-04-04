@@ -1,13 +1,15 @@
 """
-Configuration module for US imputation benchmarking.
+Configuration module for MicroImpute.
 
 This module centralizes all constants and configuration parameters used across
 the package.
 """
+
 from typing import Any, Dict, List
+
 from pydantic import ConfigDict
 
-# Define a configuration for pydantic validation that allows 
+# Define a configuration for pydantic validation that allows
 # arbitrary types like pd.DataFrame
 VALIDATE_CONFIG = ConfigDict(arbitrary_types_allowed=True)
 

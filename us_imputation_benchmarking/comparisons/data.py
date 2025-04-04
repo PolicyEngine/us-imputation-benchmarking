@@ -1,19 +1,31 @@
-from typing import List, Optional, Tuple, Union
+"""Data preparation utilities for imputation benchmarking.
+
+This module provides functions for acquiring, preprocessing, and splitting data for
+imputation benchmarking. It includes utilities for downloading Survey of Consumer Finances
+(SCF) data, normalizing features, and creating train-test splits with consistent parameters.
+"""
 
 import io
-import zipfile
 import logging
+import zipfile
+from typing import List, Optional, Tuple, Union
+
 import pandas as pd
 import requests
+from pydantic import validate_call
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-from pydantic import validate_call
 
-from us_imputation_benchmarking.config import (RANDOM_STATE, VALID_YEARS,
-                                               TRAIN_SIZE, TEST_SIZE,
-                                               VALIDATE_CONFIG)
+from us_imputation_benchmarking.config import (
+    RANDOM_STATE,
+    TEST_SIZE,
+    TRAIN_SIZE,
+    VALID_YEARS,
+    VALIDATE_CONFIG,
+)
 
 logger = logging.getLogger(__name__)
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def scf_url(year: int) -> str:
@@ -31,7 +43,9 @@ def scf_url(year: int) -> str:
     logger.debug(f"Generating SCF URL for year {year}")
 
     if year not in VALID_YEARS:
-        logger.error(f"Invalid SCF year: {year}. Valid years are {VALID_YEARS}")
+        logger.error(
+            f"Invalid SCF year: {year}. Valid years are {VALID_YEARS}"
+        )
         raise ValueError(
             f"The SCF is not available for {year}. Valid years are {VALID_YEARS}"
         )
@@ -39,6 +53,7 @@ def scf_url(year: int) -> str:
     url = f"https://www.federalreserve.gov/econres/files/scfp{year}s.zip"
     logger.debug(f"Generated URL: {url}")
     return url
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def _load(
@@ -109,8 +124,12 @@ def _load(
                         f for f in z.namelist() if f.endswith(".dta")
                     ]
                     if not dta_files:
-                        logger.error(f"No Stata files found in zip for year {year}")
-                        raise ValueError(f"No Stata files found in zip for year {year}")
+                        logger.error(
+                            f"No Stata files found in zip for year {year}"
+                        )
+                        raise ValueError(
+                            f"No Stata files found in zip for year {year}"
+                        )
 
                     logger.debug(f"Found Stata files: {dta_files}")
 
@@ -118,8 +137,12 @@ def _load(
                     try:
                         logger.debug(f"Reading Stata file: {dta_files[0]}")
                         with z.open(dta_files[0]) as f:
-                            df = pd.read_stata(io.BytesIO(f.read()), columns=columns)
-                            logger.debug(f"Read DataFrame with shape {df.shape}")
+                            df = pd.read_stata(
+                                io.BytesIO(f.read()), columns=columns
+                            )
+                            logger.debug(
+                                f"Read DataFrame with shape {df.shape}"
+                            )
 
                         # Ensure 'wgt' is included
                         if (
@@ -134,9 +157,12 @@ def _load(
                                     set(columns) | {"wgt"}
                                 )
                                 df = pd.read_stata(
-                                    io.BytesIO(f.read()), columns=cols_with_weight
+                                    io.BytesIO(f.read()),
+                                    columns=cols_with_weight,
                                 )
-                                logger.debug(f"Re-read DataFrame with shape {df.shape}")
+                                logger.debug(
+                                    f"Re-read DataFrame with shape {df.shape}"
+                                )
                     except Exception as e:
                         logger.error(
                             f"Error reading Stata file for year {year}: {str(e)}"
@@ -171,20 +197,24 @@ def _load(
             )
             return result
         else:
-            logger.info(f"Returning data for single year, shape: {all_data[0].shape}")
+            logger.info(
+                f"Returning data for single year, shape: {all_data[0].shape}"
+            )
             return all_data[0]
 
     except Exception as e:
         logger.error(f"Error in _load: {str(e)}")
         raise
 
+
 @validate_call(config=VALIDATE_CONFIG)
 def prepare_scf_data(
-    full_data: bool = False, 
-    years: Optional[Union[int, List[int]]] = None
+    full_data: bool = False, years: Optional[Union[int, List[int]]] = None
 ) -> Union[
     Tuple[pd.DataFrame, List[str], List[str]],  # when full_data=True
-    Tuple[pd.DataFrame, pd.DataFrame, List[str], List[str]],  # when full_data=False
+    Tuple[
+        pd.DataFrame, pd.DataFrame, List[str], List[str]
+    ],  # when full_data=False
 ]:
     """Preprocess the Survey of Consumer Finances data for model training and testing.
 
@@ -202,7 +232,9 @@ def prepare_scf_data(
         ValueError: If required columns are missing from the data
         RuntimeError: If data processing fails
     """
-    logger.info(f"Preparing SCF data with full_data={full_data}, years={years}")
+    logger.info(
+        f"Preparing SCF data with full_data={full_data}, years={years}"
+    )
 
     try:
         # Load the raw data
@@ -226,16 +258,18 @@ def prepare_scf_data(
             "lf",  # labor force status
         ]
 
-        IMPUTED_VARIABLES: List[str] = [
-            "networth"
-        ]
+        IMPUTED_VARIABLES: List[str] = ["networth"]
 
         # Validate that all required columns exist in the data
         missing_columns = [
-            col for col in PREDICTORS + IMPUTED_VARIABLES if col not in data.columns
+            col
+            for col in PREDICTORS + IMPUTED_VARIABLES
+            if col not in data.columns
         ]
         if missing_columns:
-            logger.error(f"Required columns missing from SCF data: {missing_columns}")
+            logger.error(
+                f"Required columns missing from SCF data: {missing_columns}"
+            )
             raise ValueError(
                 f"Required columns missing from SCF data: {missing_columns}"
             )
@@ -249,7 +283,9 @@ def prepare_scf_data(
         if full_data:
             logger.info("Processing full dataset without splitting")
             data = preprocess_data(data, full_data=True)
-            logger.info(f"Returning full processed dataset with shape {data.shape}")
+            logger.info(
+                f"Returning full processed dataset with shape {data.shape}"
+            )
             return data, PREDICTORS, IMPUTED_VARIABLES
         else:
             logger.info("Splitting data into train and test sets")
@@ -263,6 +299,7 @@ def prepare_scf_data(
         logger.error(f"Error in prepare_scf_data: {str(e)}")
         raise RuntimeError(f"Failed to prepare SCF data: {str(e)}") from e
 
+
 @validate_call(config=VALIDATE_CONFIG)
 def preprocess_data(
     data: pd.DataFrame,
@@ -274,7 +311,7 @@ def preprocess_data(
     Tuple[pd.DataFrame, pd.DataFrame],  # when full_data=False
 ]:
     """Preprocess the data for model training and testing.
-    
+
     # Validate data is not empty
     if data is None or data.empty:
         raise ValueError("Data must not be None or empty")
@@ -295,7 +332,9 @@ def preprocess_data(
         RuntimeError: If data preprocessing fails
     """
 
-    logger.debug(f"Preprocessing data with shape {data.shape}, full_data={full_data}")
+    logger.debug(
+        f"Preprocessing data with shape {data.shape}, full_data={full_data}"
+    )
 
     try:
         if data.empty:
@@ -314,7 +353,9 @@ def preprocess_data(
             # Check for constant columns (std=0)
             constant_cols = std[std == 0].index.tolist()
             if constant_cols:
-                logger.warning(f"Found constant columns (std=0): {constant_cols}")
+                logger.warning(
+                    f"Found constant columns (std=0): {constant_cols}"
+                )
                 # Handle constant columns by setting std to 1 to avoid division by zero
                 for col in constant_cols:
                     std[col] = 1

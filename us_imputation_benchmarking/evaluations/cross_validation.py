@@ -1,18 +1,28 @@
-from typing import List, Optional, Type
+"""Cross-validation utilities for imputation model evaluation.
+
+This module provides functions for evaluating imputation models using k-fold
+cross-validation. It calculates train and test quantile loss metrics for
+each fold to provide robust performance estimates.
+"""
 
 import logging
+from typing import List, Optional, Type
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import KFold
 from pydantic import validate_call
+from sklearn.model_selection import KFold
 
 from us_imputation_benchmarking.comparisons.quantile_loss import quantile_loss
-from us_imputation_benchmarking.config import (QUANTILES, RANDOM_STATE, 
-                                               VALIDATE_CONFIG)
+from us_imputation_benchmarking.config import (
+    QUANTILES,
+    RANDOM_STATE,
+    VALIDATE_CONFIG,
+)
 from us_imputation_benchmarking.models.quantreg import QuantReg
 
-
 log = logging.getLogger(__name__)
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def cross_validate_model(
@@ -47,13 +57,17 @@ def cross_validate_model(
     """
     try:
         # Validate predictor and imputed variable columns exist
-        missing_predictors = [col for col in predictors if col not in data.columns]
+        missing_predictors = [
+            col for col in predictors if col not in data.columns
+        ]
         if missing_predictors:
             error_msg = f"Missing predictor columns: {missing_predictors}"
             log.error(error_msg)
             raise ValueError(error_msg)
 
-        missing_imputed = [col for col in imputed_variables if col not in data.columns]
+        missing_imputed = [
+            col for col in imputed_variables if col not in data.columns
+        ]
         if missing_imputed:
             error_msg = f"Missing imputed variable columns: {missing_imputed}"
             log.error(error_msg)
@@ -62,9 +76,7 @@ def cross_validate_model(
         if quantiles:
             invalid_quantiles = [q for q in quantiles if not 0 <= q <= 1]
             if invalid_quantiles:
-                error_msg = (
-                    f"Invalid quantiles (must be between 0 and 1): {invalid_quantiles}"
-                )
+                error_msg = f"Invalid quantiles (must be between 0 and 1): {invalid_quantiles}"
                 log.error(error_msg)
                 raise ValueError(error_msg)
 
@@ -104,15 +116,26 @@ def cross_validate_model(
                 # Handle different model fitting requirements
                 if model_class == QuantReg:
                     log.info(f"Fitting QuantReg model with explicit quantiles")
-                    fitted_model = model.fit(train_data, predictors, imputed_variables, quantiles=quantiles)
+                    fitted_model = model.fit(
+                        train_data,
+                        predictors,
+                        imputed_variables,
+                        quantiles=quantiles,
+                    )
                 else:
                     log.info(f"Fitting {model_class.__name__} model")
-                    fitted_model = model.fit(train_data, predictors, imputed_variables)
+                    fitted_model = model.fit(
+                        train_data, predictors, imputed_variables
+                    )
 
                 # Get predictions for this fold
                 log.info(f"Generating predictions for train and test data")
-                fold_test_imputations = fitted_model.predict(test_data, quantiles)
-                fold_train_imputations = fitted_model.predict(train_data, quantiles)
+                fold_test_imputations = fitted_model.predict(
+                    test_data, quantiles
+                )
+                fold_train_imputations = fitted_model.predict(
+                    train_data, quantiles
+                )
 
                 # Store results for each quantile
                 for q in quantiles:

@@ -1,11 +1,22 @@
+"""Abstract base classes for imputation models.
+
+This module defines the core architecture for imputation models in MicroImpute.
+It provides two abstract base classes:
+1. Imputer - For model initialization and fitting
+2. ImputerResults - For storing fitted models and making predictions
+
+All model implementations should extend these classes to ensure a consistent interface.
+"""
+
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
-import logging
 from pydantic import validate_call
 
 from us_imputation_benchmarking.config import VALIDATE_CONFIG
+
 
 class Imputer(ABC):
     """
@@ -22,10 +33,7 @@ class Imputer(ABC):
         self.logger = logging.getLogger(__name__)
 
     @validate_call(config=VALIDATE_CONFIG)
-    def _validate_data(self, 
-        data: pd.DataFrame, 
-        columns: List[str]
-    ) -> None:
+    def _validate_data(self, data: pd.DataFrame, columns: List[str]) -> None:
         """Validate that all required columns are in the data.
 
         Args:
@@ -37,7 +45,7 @@ class Imputer(ABC):
         """
         if data is None or data.empty:
             raise ValueError("Data must not be None or empty")
-            
+
         missing_columns: Set[str] = set(columns) - set(data.columns)
         if missing_columns:
             error_msg = f"Missing columns in data: {missing_columns}"
@@ -82,32 +90,34 @@ class Imputer(ABC):
                     raise ValueError(error_msg)
         except Exception as e:
             raise ValueError(f"Invalid input data for model: {str(e)}") from e
-        
+
         # Save predictors and imputed variables
         self.predictors = predictors
         self.imputed_variables = imputed_variables
-        
+
         # Defer actual training to subclass with all parameters
-        fitted_model = self._fit(X_train, predictors, imputed_variables, **kwargs)
+        fitted_model = self._fit(
+            X_train, predictors, imputed_variables, **kwargs
+        )
         return fitted_model
 
     @abstractmethod
     @validate_call(config=VALIDATE_CONFIG)
     def _fit(
-        self, 
+        self,
         X_train: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
         **kwargs: Any,
     ) -> None:
         """Actual model-fitting logic (overridden in method subclass).
-        
+
         Args:
             X_train: DataFrame containing the training data.
             predictors: List of column names to use as predictors.
             imputed_variables: List of column names to impute.
             **kwargs: Additional model-specific parameters.
-            
+
         Raises:
             ValueError: If specific model parameters are invalid.
             RuntimeError: If model fitting fails.
@@ -122,9 +132,10 @@ class ImputerResults(ABC):
     All imputation models should inherit from this class and implement
     the required methods.
 
-    predict() can only be called once the model is fitted in an 
+    predict() can only be called once the model is fitted in an
     ImputerResults instance.
     """
+
     def __init__(
         self,
         predictors: List[str],
@@ -135,7 +146,8 @@ class ImputerResults(ABC):
         self.logger = logging.getLogger(__name__)
 
     @validate_call(config=VALIDATE_CONFIG)
-    def _validate_quantiles(self, 
+    def _validate_quantiles(
+        self,
         quantiles: Optional[List[float]],
     ) -> None:
         """Validate that all provided quantiles are valid.
@@ -151,7 +163,9 @@ class ImputerResults(ABC):
                 self.logger.error(
                     f"quantiles must be a list, got {type(quantiles)}"
                 )
-                raise ValueError(f"quantiles must be a list, got {type(quantiles)}")
+                raise ValueError(
+                    f"quantiles must be a list, got {type(quantiles)}"
+                )
 
             invalid_quantiles = [q for q in quantiles if not 0 <= q <= 1]
             if invalid_quantiles:
@@ -163,12 +177,11 @@ class ImputerResults(ABC):
                 )
 
     @validate_call(config=VALIDATE_CONFIG)
-    def predict(self, 
-        X_test: pd.DataFrame, 
-        quantiles: Optional[List[float]] = None
+    def predict(
+        self, X_test: pd.DataFrame, quantiles: Optional[List[float]] = None
     ) -> Dict[float, pd.DataFrame]:
         """Predict imputed values at specified quantiles.
-        
+
         Will validate that quantiles passed are in the correct format.
 
         Args:
@@ -186,8 +199,10 @@ class ImputerResults(ABC):
             # Validate quantiles
             self._validate_quantiles(quantiles)
         except Exception as quantile_error:
-            raise ValueError(f"Invalid quantiles: {str(quantile_error)}") from quantile_error
-        
+            raise ValueError(
+                f"Invalid quantiles: {str(quantile_error)}"
+            ) from quantile_error
+
         # Defer actual imputations to subclass with all parameters
         imputations = self._predict(X_test, quantiles)
         return imputations
@@ -195,8 +210,7 @@ class ImputerResults(ABC):
     @abstractmethod
     @validate_call(config=VALIDATE_CONFIG)
     def _predict(
-        self, X_test: pd.DataFrame, 
-        quantiles: Optional[List[float]] = None
+        self, X_test: pd.DataFrame, quantiles: Optional[List[float]] = None
     ) -> Dict[float, pd.DataFrame]:
         """Predict imputed values at specified quantiles.
 
@@ -211,4 +225,6 @@ class ImputerResults(ABC):
             RuntimeError: If imputation fails.
             NotImplementedError: If method is not implemented by subclass.
         """
-        raise NotImplementedError("Subclasses must implement the predict method")
+        raise NotImplementedError(
+            "Subclasses must implement the predict method"
+        )

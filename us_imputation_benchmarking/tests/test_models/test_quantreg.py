@@ -1,3 +1,6 @@
+"""Tests for the Quantile Regression imputation model.
+"""
+
 from typing import Dict, List
 
 import pandas as pd
@@ -5,7 +8,7 @@ from sklearn.datasets import load_iris
 
 from us_imputation_benchmarking.comparisons.data import preprocess_data
 from us_imputation_benchmarking.config import QUANTILES
-from us_imputation_benchmarking.evaluations import * 
+from us_imputation_benchmarking.evaluations import *
 from us_imputation_benchmarking.models.quantreg import QuantReg
 
 # Test Method on iris dataset
@@ -41,7 +44,9 @@ def test_matching_cross_validation(
 
     assert not quantreg_results.isna().any().any()
 
-    plot_train_test_performance(quantreg_results, save_path="quantreg_train_test_performance.png")
+    plot_train_test_performance(
+        quantreg_results, save_path="quantreg_train_test_performance.png"
+    )
 
 
 def test_quantreg_example(
@@ -71,7 +76,9 @@ def test_quantreg_example(
     model = QuantReg()
 
     # Fit the model to specific quantiles
-    fitted_model = model.fit(X_train, predictors, imputed_variables, quantiles=quantiles)
+    fitted_model = model.fit(
+        X_train, predictors, imputed_variables, quantiles=quantiles
+    )
 
     # Predict at the fitted quantiles
     predictions: Dict[float, pd.DataFrame] = fitted_model.predict(X_test)

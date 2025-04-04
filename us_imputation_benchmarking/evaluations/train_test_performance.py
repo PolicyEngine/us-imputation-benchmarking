@@ -1,15 +1,22 @@
+"""Train-test performance visualization for imputation models.
+
+This module provides functions for visualizing the performance of imputation models
+on both training and test datasets. It helps identify overfitting and compare
+model performance across different quantiles.
+"""
+
+import logging
 import os
 from typing import Optional, Tuple
 
-import logging
 import pandas as pd
 import plotly.graph_objects as go
 from pydantic import validate_call
 
 from us_imputation_benchmarking.config import PLOT_CONFIG, VALIDATE_CONFIG
 
-
 logger = logging.getLogger(__name__)
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def plot_train_test_performance(
@@ -42,10 +49,14 @@ def plot_train_test_performance(
     # Validate inputs
     required_indices = ["train", "test"]
     available_indices = results.index.tolist()
-    missing_indices = [idx for idx in required_indices if idx not in available_indices]
+    missing_indices = [
+        idx for idx in required_indices if idx not in available_indices
+    ]
 
     if missing_indices:
-        logger.warning(f"Missing indices in results DataFrame: {missing_indices}")
+        logger.warning(
+            f"Missing indices in results DataFrame: {missing_indices}"
+        )
         logger.info(f"Available indices: {available_indices}")
 
     try:
@@ -102,7 +113,9 @@ def plot_train_test_performance(
         )
 
         # Add grid lines
-        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)")
+        fig.update_yaxes(
+            showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)"
+        )
 
         # Save or show the plot
         if save_path:
@@ -119,13 +132,17 @@ def plot_train_test_performance(
                 fig.write_image(save_path)
 
                 # Also save HTML version for interactive viewing
-                html_path = save_path.replace(".png", ".html").replace(".jpg", ".html")
+                html_path = save_path.replace(".png", ".html").replace(
+                    ".jpg", ".html"
+                )
                 fig.write_html(html_path)
 
                 logger.info(f"Plot saved to {save_path} and {html_path}")
             except Exception as e:
                 logger.error(f"Error saving train-test plot: {str(e)}")
-                raise RuntimeError(f"Failed to save plot to {save_path}") from e
+                raise RuntimeError(
+                    f"Failed to save plot to {save_path}"
+                ) from e
 
         logger.debug("Train-test performance plot created successfully")
         return fig

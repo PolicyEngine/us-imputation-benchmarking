@@ -1,31 +1,47 @@
-"""US Imputation Benchmarking Package
+"""MicroImpute Package
 
-A package for benchmarking different imputation methods using US data.
+A package for benchmarking different imputation methods using microdata.
 """
 
 __version__ = "0.1.0"
 
-# Import main models and utilities
-from us_imputation_benchmarking.models import (
-    Imputer, ImputerResults,
-    OLS, QRF, QuantReg, Matching
-)
-
 # Import data handling functions
 from us_imputation_benchmarking.comparisons.data import (
-    prepare_scf_data, preprocess_data
+    prepare_scf_data,
+    preprocess_data,
 )
-
-# Import evaluation modules
-from us_imputation_benchmarking.evaluations.cross_validation import cross_validate_model
-from us_imputation_benchmarking.evaluations.train_test_performance import plot_train_test_performance
+from us_imputation_benchmarking.comparisons.imputations import get_imputations
+from us_imputation_benchmarking.comparisons.plot import plot_loss_comparison
 
 # Import comparison utilities
 from us_imputation_benchmarking.comparisons.quantile_loss import (
-    quantile_loss, compare_quantile_loss, compute_quantile_loss
+    compare_quantile_loss,
+    compute_quantile_loss,
+    quantile_loss,
 )
-from us_imputation_benchmarking.comparisons.plot import plot_loss_comparison
-from us_imputation_benchmarking.comparisons.imputations import get_imputations
 
 # Main configuration
-from us_imputation_benchmarking.config import RANDOM_STATE, QUANTILES, PLOT_CONFIG, VALIDATE_CONFIG
+from us_imputation_benchmarking.config import (
+    PLOT_CONFIG,
+    QUANTILES,
+    RANDOM_STATE,
+    VALIDATE_CONFIG,
+)
+
+# Import evaluation modules
+from us_imputation_benchmarking.evaluations.cross_validation import (
+    cross_validate_model,
+)
+from us_imputation_benchmarking.evaluations.train_test_performance import (
+    plot_train_test_performance,
+)
+
+# Import main models and utilities
+from us_imputation_benchmarking.models import (
+    OLS,
+    QRF,
+    Imputer,
+    ImputerResults,
+    Matching,
+    QuantReg,
+)

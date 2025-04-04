@@ -13,7 +13,7 @@ from sklearn.datasets import load_iris
 
 from us_imputation_benchmarking.comparisons.data import preprocess_data
 from us_imputation_benchmarking.config import QUANTILES
-from us_imputation_benchmarking.models import * 
+from us_imputation_benchmarking.models import *
 
 
 @pytest.fixture
@@ -36,16 +36,15 @@ def iris_data() -> pd.DataFrame:
 
     return data
 
+
 # Define all imputer model classes to test
-ALL_IMPUTER_MODELS = [
-    OLS,
-    QuantReg, 
-    QRF, 
-    Matching
-]
+ALL_IMPUTER_MODELS = [OLS, QuantReg, QRF, Matching]
+
 
 # Parametrize tests to run for each model
-@pytest.mark.parametrize("model_class", ALL_IMPUTER_MODELS, ids=lambda cls: cls.__name__)
+@pytest.mark.parametrize(
+    "model_class", ALL_IMPUTER_MODELS, ids=lambda cls: cls.__name__
+)
 def test_init_signatures(model_class: Type[Imputer]) -> None:
     """Test that all models can be initialized without required arguments.
 
@@ -61,8 +60,13 @@ def test_init_signatures(model_class: Type[Imputer]) -> None:
         model.imputed_variables is None
     ), f"{model_class.__name__} should initialize imputed_variables as None"
 
-@pytest.mark.parametrize("model_class", ALL_IMPUTER_MODELS, ids=lambda cls: cls.__name__)
-def test_fit_predict_interface(model_class: Type[Imputer], iris_data: pd.DataFrame) -> None:
+
+@pytest.mark.parametrize(
+    "model_class", ALL_IMPUTER_MODELS, ids=lambda cls: cls.__name__
+)
+def test_fit_predict_interface(
+    model_class: Type[Imputer], iris_data: pd.DataFrame
+) -> None:
     """Test the fit and predict methods for each model.
     Demonstrating models can be interchanged through the Imputer interface.
 
@@ -73,7 +77,7 @@ def test_fit_predict_interface(model_class: Type[Imputer], iris_data: pd.DataFra
     quantiles = QUANTILES
     predictors = ["sepal length (cm)", "sepal width (cm)", "petal length (cm)"]
     imputed_variables = ["petal width (cm)"]
-    
+
     X_train, X_test = preprocess_data(iris_data)
 
     # Test with specified quantiles
@@ -84,7 +88,9 @@ def test_fit_predict_interface(model_class: Type[Imputer], iris_data: pd.DataFra
     # Fit the model
     if model_class.__name__ == "QuantReg":
         # For QuantReg, we need to explicitly fit the quantiles
-        fitted_model = model.fit(X_train, predictors, imputed_variables, quantiles=quantiles)
+        fitted_model = model.fit(
+            X_train, predictors, imputed_variables, quantiles=quantiles
+        )
     else:
         fitted_model = model.fit(X_train, predictors, imputed_variables)
 
@@ -116,7 +122,9 @@ def test_fit_predict_interface(model_class: Type[Imputer], iris_data: pd.DataFra
     model_default_q = model_class()
 
     # Fit the model
-    fitted_default_model = model_default_q.fit(X_train, predictors, imputed_variables)
+    fitted_default_model = model_default_q.fit(
+        X_train, predictors, imputed_variables
+    )
 
     default_predictions = fitted_default_model.predict(X_test)
     assert isinstance(default_predictions, dict), (

@@ -1,3 +1,6 @@
+"""Quantile Regression imputation model.
+"""
+
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -13,6 +16,7 @@ class QuantRegResults(ImputerResults):
     """
     Fitted QuantReg instance ready for imputation.
     """
+
     def __init__(
         self,
         models: Dict[float, "QuantReg"],
@@ -31,8 +35,7 @@ class QuantRegResults(ImputerResults):
 
     @validate_call(config=VALIDATE_CONFIG)
     def _predict(
-        self, X_test: pd.DataFrame, 
-        quantiles: Optional[List[float]] = None
+        self, X_test: pd.DataFrame, quantiles: Optional[List[float]] = None
     ) -> Dict[float, pd.DataFrame]:
         """Predict values at specified quantiles using the Quantile Regression model.
 
@@ -56,7 +59,7 @@ class QuantRegResults(ImputerResults):
             self.logger.info(f"Prepared test data with {len(X_test)} samples")
 
             if quantiles is not None:
-                # Predict for each requested quantile 
+                # Predict for each requested quantile
                 for q in quantiles:
                     try:
                         if q not in self.models:
@@ -64,7 +67,9 @@ class QuantRegResults(ImputerResults):
                             self.logger.error(error_msg)
                             raise ValueError(error_msg)
                     except Exception as quantile_error:
-                        self.logger.error(f"Error accessing quantiles: {str(quantile_error)}")
+                        self.logger.error(
+                            f"Error accessing quantiles: {str(quantile_error)}"
+                        )
                         raise RuntimeError(
                             f"Failed to access {q} quantile for prediction"
                         ) from quantile_error
@@ -75,13 +80,17 @@ class QuantRegResults(ImputerResults):
             else:
                 # Predict for all quantiles that were already fitted
                 quantiles = list(self.models.keys())
-                self.logger.info(f"Predicting on already fitted {quantiles} quantiles")
+                self.logger.info(
+                    f"Predicting on already fitted {quantiles} quantiles"
+                )
                 for q in quantiles:
                     self.logger.info(f"Predicting with model for q={q}")
                     imputation = self.models[q].predict(X_test_with_const)
                     imputations[q] = pd.DataFrame(imputation)
 
-            self.logger.info(f"Completed predictions for {len(quantiles)} quantiles")
+            self.logger.info(
+                f"Completed predictions for {len(quantiles)} quantiles"
+            )
             return imputations
 
         except ValueError as e:
@@ -108,7 +117,7 @@ class QuantReg(Imputer):
         self.models: Dict[float, Any] = {}
         self.logger.debug("Initializing QuantReg imputer")
 
-    @validate_call(config=VALIDATE_CONFIG, validate_return=False)
+    @validate_call(config=VALIDATE_CONFIG)
     def _fit(
         self,
         X_train: pd.DataFrame,
@@ -136,9 +145,7 @@ class QuantReg(Imputer):
             if quantiles:
                 invalid_quantiles = [q for q in quantiles if not 0 <= q <= 1]
                 if invalid_quantiles:
-                    error_msg = (
-                        f"Quantiles must be between 0 and 1, got: {invalid_quantiles}"
-                    )
+                    error_msg = f"Quantiles must be between 0 and 1, got: {invalid_quantiles}"
                     self.logger.error(error_msg)
                     raise ValueError(error_msg)
                 self.logger.info(
@@ -162,7 +169,9 @@ class QuantReg(Imputer):
                     self.logger.info(f"Model for q={q} fitted successfully")
             else:
                 q = np.random.uniform(0, 1)
-                self.logger.info(f"Fitting quantile regression for random q={q:.4f}")
+                self.logger.info(
+                    f"Fitting quantile regression for random q={q:.4f}"
+                )
                 self.models[q] = sm.QuantReg(Y, X_with_const).fit(q=q)
                 self.logger.info(f"Model for q={q:.4f} fitted successfully")
 
@@ -174,4 +183,6 @@ class QuantReg(Imputer):
             )
         except Exception as e:
             self.logger.error(f"Error fitting QuantReg model: {str(e)}")
-            raise RuntimeError(f"Failed to fit QuantReg model: {str(e)}") from e
+            raise RuntimeError(
+                f"Failed to fit QuantReg model: {str(e)}"
+            ) from e

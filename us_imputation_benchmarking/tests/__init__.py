@@ -1,2 +1,2 @@
-"""Tests for the US Imputation Benchmarking package.
+"""Tests for the MicroImpute package.
 """

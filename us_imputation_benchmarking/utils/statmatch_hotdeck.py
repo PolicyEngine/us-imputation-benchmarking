@@ -1,9 +1,16 @@
+"""Statistical matching hot deck imputation utilities.
+
+This module provides an interface to R's StatMatch package for performing nearest neighbor
+distance hot deck matching.
+"""
+
 import logging
 from typing import Any, List, Optional, Tuple
-from pydantic import validate_call
+
 import numpy as np
 import pandas as pd
 import rpy2.robjects as ro
+from pydantic import validate_call
 from rpy2.robjects import numpy2ri, pandas2ri
 from rpy2.robjects.packages import importr
 
@@ -20,32 +27,33 @@ StatMatch = importr("StatMatch")
 log = logging.getLogger(__name__)
 
 """
-data.rec: A matrix or data frame that plays the role of recipient in the 
+data.rec: A matrix or data frame that plays the role of recipient in the
          statistical matching application.
 
-data.don: A matrix or data frame that that plays the role of donor in the 
+data.don: A matrix or data frame that that plays the role of donor in the
          statistical matching application.
 
-mtc.ids: A matrix with two columns. Each row must contain the name or the index 
-         of the recipient record (row) in data.don and the name or the index of 
-         the corresponding donor record (row) in data.don. Note that this type 
-         of matrix is returned by the functions NND.hotdeck, RANDwNND.hotdeck, 
+mtc.ids: A matrix with two columns. Each row must contain the name or the index
+         of the recipient record (row) in data.don and the name or the index of
+         the corresponding donor record (row) in data.don. Note that this type
+         of matrix is returned by the functions NND.hotdeck, RANDwNND.hotdeck,
          rankNND.hotdeck, and mixed.mtc.
 
-z.vars: A character vector with the names of the variables available only in 
+z.vars: A character vector with the names of the variables available only in
         data.don that should be "donated" to data.rec.
 networth
 
-dup.x: Logical. When TRUE the values of the matching variables in data.don are 
-       also "donated" to data.rec. The names of the matching variables have to 
-       be specified with the argument match.vars. To avoid confusion, the 
-       matching variables added to data.rec are renamed by adding the suffix 
+dup.x: Logical. When TRUE the values of the matching variables in data.don are
+       also "donated" to data.rec. The names of the matching variables have to
+       be specified with the argument match.vars. To avoid confusion, the
+       matching variables added to data.rec are renamed by adding the suffix
        "don". By default dup.x=FALSE.
 
-match.vars: A character vector with the names of the matching variables. It has 
-           to be specified only when dup.x=TRUE. All other vars (no need to 
+match.vars: A character vector with the names of the matching variables. It has
+           to be specified only when dup.x=TRUE. All other vars (no need to
            specify)
 """
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def nnd_hotdeck_using_rpy2(
@@ -81,7 +89,9 @@ def nnd_hotdeck_using_rpy2(
             raise ValueError(error_msg)
 
         if matching_variables is None or not matching_variables:
-            error_msg = "Matching variables must be provided and cannot be empty"
+            error_msg = (
+                "Matching variables must be provided and cannot be empty"
+            )
             log.error(error_msg)
             raise ValueError(error_msg)
 
@@ -94,7 +104,9 @@ def nnd_hotdeck_using_rpy2(
         missing_in_receiver = [
             v for v in matching_variables if v not in receiver.columns
         ]
-        missing_in_donor = [v for v in matching_variables if v not in donor.columns]
+        missing_in_donor = [
+            v for v in matching_variables if v not in donor.columns
+        ]
 
         if missing_in_receiver:
             error_msg = f"Matching variables missing in receiver: {missing_in_receiver}"
@@ -102,7 +114,9 @@ def nnd_hotdeck_using_rpy2(
             raise ValueError(error_msg)
 
         if missing_in_donor:
-            error_msg = f"Matching variables missing in donor: {missing_in_donor}"
+            error_msg = (
+                f"Matching variables missing in donor: {missing_in_donor}"
+            )
             log.error(error_msg)
             raise ValueError(error_msg)
 
@@ -126,7 +140,9 @@ def nnd_hotdeck_using_rpy2(
             # Import R's StatMatch package
             StatMatch = importr("StatMatch")
         except Exception as r_import_error:
-            log.error(f"Failed to import R's StatMatch package: {str(r_import_error)}")
+            log.error(
+                f"Failed to import R's StatMatch package: {str(r_import_error)}"
+            )
             raise RuntimeError(
                 f"Error importing R package: {str(r_import_error)}"
             ) from r_import_error
@@ -195,13 +211,16 @@ def nnd_hotdeck_using_rpy2(
                             [
                                 mtc_array,
                                 np.repeat(
-                                    mtc_array[-1], len(receiver) - len(mtc_array)
+                                    mtc_array[-1],
+                                    len(receiver) - len(mtc_array),
                                 ),
                             ]
                         )
 
                 # Create the final mtc.ids matrix required by create_fused
-                mtc_matrix = np.column_stack((recipient_indices, donor_indices_valid))
+                mtc_matrix = np.column_stack(
+                    (recipient_indices, donor_indices_valid)
+                )
 
                 # Convert to R matrix
                 mtc_ids = ro.r.matrix(
@@ -210,7 +229,9 @@ def nnd_hotdeck_using_rpy2(
                     ncol=2,
                 )
         except Exception as matrix_error:
-            log.error(f"Error processing matching indices: {str(matrix_error)}")
+            log.error(
+                f"Error processing matching indices: {str(matrix_error)}"
+            )
             raise RuntimeError(
                 f"Failed to process matching indices: {str(matrix_error)}"
             ) from matrix_error

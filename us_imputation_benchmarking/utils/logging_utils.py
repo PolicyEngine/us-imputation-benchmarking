@@ -1,5 +1,5 @@
 """
-Logging utilities for the us-imputation-benchmarking package.
+Logging utilities for the MicroImpute package.
 
 This module provides centralized logging configuration and utilities
 for consistent error handling across the codebase.

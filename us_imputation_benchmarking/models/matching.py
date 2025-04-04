@@ -1,29 +1,35 @@
+"""Statistical matching imputation model using hot deck methods.
+"""
+
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from rpy2.robjects import pandas2ri
 from pydantic import validate_call
+from rpy2.robjects import pandas2ri
 
 from us_imputation_benchmarking.config import VALIDATE_CONFIG
 from us_imputation_benchmarking.models.imputer import Imputer, ImputerResults
-from us_imputation_benchmarking.utils.statmatch_hotdeck import \
-    nnd_hotdeck_using_rpy2
+from us_imputation_benchmarking.utils.statmatch_hotdeck import (
+    nnd_hotdeck_using_rpy2,
+)
 
 MatchingHotdeckFn = Callable[
     [
         Optional[pd.DataFrame],
         Optional[pd.DataFrame],
         Optional[List[str]],
-        Optional[List[str]]
+        Optional[List[str]],
     ],
-    Tuple[pd.DataFrame, pd.DataFrame]
+    Tuple[pd.DataFrame, pd.DataFrame],
 ]
+
 
 class MatchingResults(ImputerResults):
     """
     Fitted Matching instance ready for imputation.
     """
+
     def __init__(
         self,
         matching_hotdeck: MatchingHotdeckFn,
@@ -34,7 +40,7 @@ class MatchingResults(ImputerResults):
         """Initialize the matching model.
 
         Args:
-            matching_hotdeck: Function that performs the hot deck matching.  
+            matching_hotdeck: Function that performs the hot deck matching.
             donor_data: DataFrame containing the donor data.
             predictors: List of column names to use as predictors.
             imputed_variables: List of column names to impute.
@@ -45,8 +51,7 @@ class MatchingResults(ImputerResults):
 
     @validate_call(config=VALIDATE_CONFIG)
     def _predict(
-        self, X_test: pd.DataFrame, 
-        quantiles: Optional[List[float]] = None
+        self, X_test: pd.DataFrame, quantiles: Optional[List[float]] = None
     ) -> Dict[float, pd.DataFrame]:
         """Predict imputed values using the matching model.
 
@@ -63,7 +68,9 @@ class MatchingResults(ImputerResults):
             RuntimeError: If matching or prediction fails.
         """
         try:
-            self.logger.info(f"Performing matching for {len(X_test)} recipient records")
+            self.logger.info(
+                f"Performing matching for {len(X_test)} recipient records"
+            )
 
             # Create a copy to avoid modifying the input
             try:
@@ -71,15 +78,22 @@ class MatchingResults(ImputerResults):
                 X_test_copy = X_test.copy()
 
                 # Drop imputed variables if they exist in test data
-                if any(col in X_test.columns for col in self.imputed_variables):
+                if any(
+                    col in X_test.columns for col in self.imputed_variables
+                ):
                     self.logger.debug(
                         f"Dropping imputed variables from test data: {self.imputed_variables}"
                     )
                     X_test_copy.drop(
-                        self.imputed_variables, axis=1, inplace=True, errors="ignore"
+                        self.imputed_variables,
+                        axis=1,
+                        inplace=True,
+                        errors="ignore",
                     )
             except Exception as copy_error:
-                self.logger.error(f"Error preparing test data: {str(copy_error)}")
+                self.logger.error(
+                    f"Error preparing test data: {str(copy_error)}"
+                )
                 raise RuntimeError(
                     "Failed to prepare test data for matching"
                 ) from copy_error
@@ -94,8 +108,12 @@ class MatchingResults(ImputerResults):
                     z_variables=self.imputed_variables,
                 )
             except Exception as matching_error:
-                self.logger.error(f"Error in hot deck matching: {str(matching_error)}")
-                raise RuntimeError("Hot deck matching failed") from matching_error
+                self.logger.error(
+                    f"Error in hot deck matching: {str(matching_error)}"
+                )
+                raise RuntimeError(
+                    "Hot deck matching failed"
+                ) from matching_error
 
             # Convert R objects to pandas DataFrame
             try:
@@ -140,12 +158,16 @@ class MatchingResults(ImputerResults):
                         imputations[q] = fused0_pd[self.imputed_variables]
                 else:
                     q = np.random.uniform(0, 1)
-                    self.logger.info(f"Creating imputation for random quantile {q:.3f}")
+                    self.logger.info(
+                        f"Creating imputation for random quantile {q:.3f}"
+                    )
                     imputations[q] = fused0_pd[self.imputed_variables]
 
                 # Verify output shapes
                 for q, df in imputations.items():
-                    self.logger.debug(f"Imputation result for q={q}: shape={df.shape}")
+                    self.logger.debug(
+                        f"Imputation result for q={q}: shape={df.shape}"
+                    )
                     if len(df) != len(X_test):
                         self.logger.warning(
                             f"Result shape mismatch: expected {len(X_test)} rows, got {len(df)}"
@@ -177,7 +199,9 @@ class Matching(Imputer):
     neighbor distance hot deck matching for imputation.
     """
 
-    def __init__(self, matching_hotdeck: MatchingHotdeckFn = nnd_hotdeck_using_rpy2) -> None:
+    def __init__(
+        self, matching_hotdeck: MatchingHotdeckFn = nnd_hotdeck_using_rpy2
+    ) -> None:
         """Initialize the matching model.
 
         Args:
@@ -197,7 +221,7 @@ class Matching(Imputer):
         self.matching_hotdeck = matching_hotdeck
         self.donor_data: Optional[pd.DataFrame] = None
 
-    @validate_call(config=VALIDATE_CONFIG, validate_return=False)
+    @validate_call(config=VALIDATE_CONFIG)
     def _fit(
         self,
         X_train: pd.DataFrame,
@@ -220,9 +244,13 @@ class Matching(Imputer):
         try:
             self.donor_data = X_train.copy()
 
-            self.logger.info(f"Matching model ready with {len(X_train)} donor records")
+            self.logger.info(
+                f"Matching model ready with {len(X_train)} donor records"
+            )
             self.logger.info(f"Using predictors: {predictors}")
-            self.logger.info(f"Targeting imputed variables: {imputed_variables}")
+            self.logger.info(
+                f"Targeting imputed variables: {imputed_variables}"
+            )
 
             return MatchingResults(
                 matching_hotdeck=self.matching_hotdeck,
@@ -232,4 +260,6 @@ class Matching(Imputer):
             )
         except Exception as e:
             self.logger.error(f"Error setting up matching model: {str(e)}")
-            raise ValueError(f"Failed to set up matching model: {str(e)}") from e
+            raise ValueError(
+                f"Failed to set up matching model: {str(e)}"
+            ) from e

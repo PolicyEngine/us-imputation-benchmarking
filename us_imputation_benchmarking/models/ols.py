@@ -1,10 +1,13 @@
-from typing import Dict, List, Optional, Any
+"""Ordinary Least Squares regression model for imputation.
+"""
+
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from scipy.stats import norm
 from pydantic import validate_call
+from scipy.stats import norm
 
 from us_imputation_benchmarking.config import VALIDATE_CONFIG
 from us_imputation_benchmarking.models.imputer import Imputer, ImputerResults
@@ -14,6 +17,7 @@ class OLSResults(ImputerResults):
     """
     Fitted OLS instance ready for imputation.
     """
+
     def __init__(
         self,
         model: "OLS",
@@ -32,8 +36,7 @@ class OLSResults(ImputerResults):
 
     @validate_call(config=VALIDATE_CONFIG)
     def _predict(
-        self, X_test: pd.DataFrame, 
-        quantiles: Optional[List[float]] = None
+        self, X_test: pd.DataFrame, quantiles: Optional[List[float]] = None
     ) -> Dict[float, pd.DataFrame]:
         """Predict values at specified quantiles using the OLS model.
 
@@ -55,7 +58,8 @@ class OLSResults(ImputerResults):
 
             if quantiles:
                 self.logger.info(
-                f"Predicting at {len(quantiles)} quantiles: {quantiles}")
+                    f"Predicting at {len(quantiles)} quantiles: {quantiles}"
+                )
                 for q in quantiles:
                     imputation = self._predict_quantile(X_test_with_const, q)
                     imputations[q] = pd.DataFrame(imputation)
@@ -65,10 +69,12 @@ class OLSResults(ImputerResults):
                 imputation = self._predict_quantile(X_test_with_const, q)
                 imputations[q] = pd.DataFrame(imputation)
             return imputations
-        
+
         except Exception as e:
             self.logger.error(f"Error during prediction: {str(e)}")
-            raise RuntimeError(f"Failed to predict with OLS model: {str(e)}") from e
+            raise RuntimeError(
+                f"Failed to predict with OLS model: {str(e)}"
+            ) from e
 
     @validate_call(config=VALIDATE_CONFIG)
     def _predict_quantile(self, X: pd.DataFrame, q: float) -> np.ndarray:
@@ -93,7 +99,9 @@ class OLSResults(ImputerResults):
             if isinstance(e, ValueError):
                 raise e
             self.logger.error(f"Error predicting at quantile {q}: {str(e)}")
-            raise RuntimeError(f"Failed to predict at quantile {q}: {str(e)}") from e
+            raise RuntimeError(
+                f"Failed to predict at quantile {q}: {str(e)}"
+            ) from e
 
 
 class OLS(Imputer):
@@ -110,7 +118,7 @@ class OLS(Imputer):
         self.model = None
         self.logger.debug("Initializing OLS imputer")
 
-    @validate_call(config=VALIDATE_CONFIG, validate_return=False)
+    @validate_call(config=VALIDATE_CONFIG)
     def _fit(
         self,
         X_train: pd.DataFrame,
@@ -131,7 +139,9 @@ class OLS(Imputer):
             RuntimeError: If model fitting fails.
         """
         try:
-            self.logger.info(f"Fitting OLS model with {len(predictors)} predictors")
+            self.logger.info(
+                f"Fitting OLS model with {len(predictors)} predictors"
+            )
 
             Y = X_train[imputed_variables]
             X_with_const = sm.add_constant(X_train[predictors])

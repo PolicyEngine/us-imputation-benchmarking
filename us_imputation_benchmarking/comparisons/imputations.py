@@ -1,6 +1,13 @@
-from typing import Any, Dict, List, Optional, Type, Union
+"""Imputation generation utilities.
+
+This module handles the generation of imputations using multiple model classes.
+It provides functions to generate predictions at different quantiles,
+and organize results in a consistent format for comparison.
+"""
 
 import logging
+from typing import Any, Dict, List, Optional, Type, Union
+
 import numpy as np
 import pandas as pd
 from pydantic import validate_call
@@ -8,8 +15,8 @@ from pydantic import validate_call
 from us_imputation_benchmarking.config import QUANTILES, VALIDATE_CONFIG
 from us_imputation_benchmarking.models.quantreg import QuantReg
 
-
 log = logging.getLogger(__name__)
+
 
 @validate_call(config=VALIDATE_CONFIG)
 def get_imputations(
@@ -66,9 +73,7 @@ def get_imputations(
             col for col in predictors if col not in X_test.columns
         ]
         if missing_predictors_test:
-            error_msg = (
-                f"Missing predictor columns in test data: {missing_predictors_test}"
-            )
+            error_msg = f"Missing predictor columns in test data: {missing_predictors_test}"
             log.error(error_msg)
             raise ValueError(error_msg)
 
@@ -76,13 +81,13 @@ def get_imputations(
         if quantiles:
             invalid_quantiles = [q for q in quantiles if not 0 < q < 1]
             if invalid_quantiles:
-                error_msg = (
-                    f"Invalid quantiles (must be between 0 and 1): {invalid_quantiles}"
-                )
+                error_msg = f"Invalid quantiles (must be between 0 and 1): {invalid_quantiles}"
                 log.error(error_msg)
                 raise ValueError(error_msg)
 
-        log.info(f"Generating imputations for {len(model_classes)} model classes")
+        log.info(
+            f"Generating imputations for {len(model_classes)} model classes"
+        )
         log.info(
             f"Training data shape: {X_train.shape}, Test data shape: {X_test.shape}"
         )
@@ -107,10 +112,17 @@ def get_imputations(
                 # Handle QuantReg which needs quantiles during fitting
                 if model_class == QuantReg:
                     log.info(f"Fitting {model_name} with explicit quantiles")
-                    fitted_model = model.fit(X_train, predictors, imputed_variables, quantiles=quantiles)
+                    fitted_model = model.fit(
+                        X_train,
+                        predictors,
+                        imputed_variables,
+                        quantiles=quantiles,
+                    )
                 else:
                     log.info(f"Fitting {model_name}")
-                    fitted_model = model.fit(X_train, predictors, imputed_variables)
+                    fitted_model = model.fit(
+                        X_train, predictors, imputed_variables
+                    )
 
                 # Get predictions
                 log.info(f"Generating predictions with {model_name}")
@@ -134,7 +146,9 @@ def get_imputations(
                 )
 
             except Exception as model_error:
-                log.error(f"Error processing model {model_name}: {str(model_error)}")
+                log.error(
+                    f"Error processing model {model_name}: {str(model_error)}"
+                )
                 raise RuntimeError(
                     f"Failed to process model {model_name}: {str(model_error)}"
                 ) from model_error

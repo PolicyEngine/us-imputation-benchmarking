@@ -1,3 +1,6 @@
+"""Tests for the OLS (Ordinary Least Squares) imputation model.
+"""
+
 from typing import Dict, List
 
 import numpy as np
@@ -34,13 +37,17 @@ def test_ols_cross_validation(
             imputed_variables: List of variables to impute.
             quantiles: List of quantiles to predict.
     """
-    ols_results = cross_validate_model(OLS, data, predictors, imputed_variables)
+    ols_results = cross_validate_model(
+        OLS, data, predictors, imputed_variables
+    )
 
     ols_results.to_csv("ols_results.csv")
 
     assert not ols_results.isna().any().any()
 
-    plot_train_test_performance(ols_results, save_path="ols_train_test_performance.png")
+    plot_train_test_performance(
+        ols_results, save_path="ols_train_test_performance.png"
+    )
 
 
 def test_ols_example(
@@ -73,7 +80,9 @@ def test_ols_example(
     fitted_model = model.fit(X_train, predictors, imputed_variables)
 
     # Predict at multiple quantiles
-    predictions: Dict[float, pd.DataFrame] = fitted_model.predict(X_test, quantiles)
+    predictions: Dict[float, pd.DataFrame] = fitted_model.predict(
+        X_test, quantiles
+    )
 
     # Check structure of predictions
     assert isinstance(predictions, dict)

@@ -1,0 +1,20 @@
+format: jb-book
+root: index
+
+parts: 
+
+  - caption: Available models
+    chapters:
+      - file: models/imputer/index
+        sections:
+          - file: models/imputer/implement-new-model
+      - file: models/matching/index
+      - file: models/ols/index
+      - file: models/qrf/index
+      - file: models/quantreg/index
+  - caption: Imputation benchmarking
+    chapters:
+      - file: benchmarking/index
+  - caption: CPS example
+    chapters:
+      - file: examples/cps/index

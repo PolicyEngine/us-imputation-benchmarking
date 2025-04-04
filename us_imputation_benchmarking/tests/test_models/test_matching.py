@@ -1,3 +1,6 @@
+"""Tests for the Statistical Matching imputation model.
+"""
+
 from typing import Dict, List
 
 import pandas as pd
@@ -41,7 +44,9 @@ def test_matching_cross_validation(
 
     assert not matching_results.isna().any().any()
 
-    plot_train_test_performance(matching_results, save_path="matching_train_test_performance.png")
+    plot_train_test_performance(
+        matching_results, save_path="matching_train_test_performance.png"
+    )
 
 
 def test_matching_example_use(
@@ -77,7 +82,9 @@ def test_matching_example_use(
     # For matching, quantiles don't have the same meaning as in regression
     # The same matched value is used for all quantiles
     test_quantiles: List[float] = [0.5]  # Just use one quantile for simplicity
-    predictions: Dict[float, pd.DataFrame] = fitted_model.predict(X_test, test_quantiles)
+    predictions: Dict[float, pd.DataFrame] = fitted_model.predict(
+        X_test, test_quantiles
+    )
 
     # Check structure of predictions
     assert isinstance(predictions, dict)

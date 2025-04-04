@@ -1,10 +1,17 @@
+"""Quantile Random Forest (QRF) utilities.
+
+This module provides specialized functionality for Quantile Random Forest implementations.
+It builds on scikit-learn's random forest to enable quantile predictions.
+"""
+
 import logging
 import os
 import pickle
 from typing import Any, List, Optional
-from pydantic import validate_call
+
 import numpy as np
 import pandas as pd
+from pydantic import validate_call
 from quantile_forest import RandomForestQuantileRegressor
 
 from us_imputation_benchmarking.config import RANDOM_STATE, VALIDATE_CONFIG
@@ -16,8 +23,7 @@ class QRF:
     output_columns: Optional[List[str]] = None
 
     def __init__(
-        self, seed: int = RANDOM_STATE, 
-        file_path: Optional[str] = None
+        self, seed: int = RANDOM_STATE, file_path: Optional[str] = None
     ) -> None:
         """Initialize Quantile Random Forest.
 
@@ -30,14 +36,18 @@ class QRF:
             RuntimeError: If file loading fails
         """
         self.logger = logging.getLogger(__name__)
-        self.logger.debug(f"Initializing QRF with seed={seed}, file_path={file_path}")
+        self.logger.debug(
+            f"Initializing QRF with seed={seed}, file_path={file_path}"
+        )
         self.seed = seed
         self.qrf = None
 
         if file_path is not None:
             try:
                 if not os.path.exists(file_path):
-                    raise FileNotFoundError(f"Model file not found: {file_path}")
+                    raise FileNotFoundError(
+                        f"Model file not found: {file_path}"
+                    )
 
                 with open(file_path, "rb") as f:
                     data = pickle.load(f)
@@ -46,16 +56,19 @@ class QRF:
                 self.encoded_columns = data["encoded_columns"]
                 self.output_columns = data["output_columns"]
                 self.qrf = data["qrf"]
-                self.logger.info(f"Successfully loaded QRF model from {file_path}")
+                self.logger.info(
+                    f"Successfully loaded QRF model from {file_path}"
+                )
             except (pickle.PickleError, KeyError) as e:
-                self.logger.error(f"Failed to load model from {file_path}: {str(e)}")
-                raise RuntimeError(f"Failed to load QRF model from {file_path}") from e
+                self.logger.error(
+                    f"Failed to load model from {file_path}: {str(e)}"
+                )
+                raise RuntimeError(
+                    f"Failed to load QRF model from {file_path}"
+                ) from e
 
     @validate_call(config=VALIDATE_CONFIG)
-    def fit(self, 
-            X: pd.DataFrame, 
-            y: pd.DataFrame, 
-            **qrf_kwargs: Any) -> None:
+    def fit(self, X: pd.DataFrame, y: pd.DataFrame, **qrf_kwargs: Any) -> None:
         """Fit the Quantile Random Forest model.
 
         Args:
@@ -68,7 +81,9 @@ class QRF:
             ValueError: If X or y are empty or have incompatible shapes
             RuntimeError: If model fitting fails
         """
-        self.logger.debug(f"Fitting QRF with X shape {X.shape}, y shape {y.shape}")
+        self.logger.debug(
+            f"Fitting QRF with X shape {X.shape}, y shape {y.shape}"
+        )
 
         # Validate inputs
         if len(X) != len(y):
@@ -80,10 +95,16 @@ class QRF:
             )
 
         try:
-            self.categorical_columns = X.select_dtypes(include=["object"]).columns
-            self.logger.debug(f"Categorical columns: {list(self.categorical_columns)}")
+            self.categorical_columns = X.select_dtypes(
+                include=["object"]
+            ).columns
+            self.logger.debug(
+                f"Categorical columns: {list(self.categorical_columns)}"
+            )
 
-            X = pd.get_dummies(X, columns=self.categorical_columns, drop_first=True)
+            X = pd.get_dummies(
+                X, columns=self.categorical_columns, drop_first=True
+            )
             self.encoded_columns = X.columns
             self.output_columns = y.columns
 
@@ -140,22 +161,33 @@ class QRF:
 
         if mean_quantile <= 0 or mean_quantile >= 1:
             self.logger.error(f"Invalid mean_quantile: {mean_quantile}")
-            raise ValueError("mean_quantile must be between 0 and 1 (exclusive)")
+            raise ValueError(
+                "mean_quantile must be between 0 and 1 (exclusive)"
+            )
 
         try:
-            if self.categorical_columns is None or self.encoded_columns is None:
+            if (
+                self.categorical_columns is None
+                or self.encoded_columns is None
+            ):
                 self.logger.error(
                     "Model not properly initialized with required attributes"
                 )
                 raise ValueError("Model not properly initialized")
 
-            self.logger.debug("Encoding categorical features with one-hot encoding")
-            X = pd.get_dummies(X, columns=self.categorical_columns, drop_first=True)
+            self.logger.debug(
+                "Encoding categorical features with one-hot encoding"
+            )
+            X = pd.get_dummies(
+                X, columns=self.categorical_columns, drop_first=True
+            )
 
             # Check for missing columns
             missing_cols = set(self.encoded_columns) - set(X.columns)
             if missing_cols:
-                self.logger.warning(f"Missing columns in input data: {missing_cols}")
+                self.logger.warning(
+                    f"Missing columns in input data: {missing_cols}"
+                )
                 for col in missing_cols:
                     X[col] = 0  # Add missing columns with zeros
 
@@ -165,20 +197,26 @@ class QRF:
             self.logger.debug(
                 f"Making predictions with {count_samples} quantile samples"
             )
-            pred = self.qrf.predict(X, quantiles=list(np.linspace(0, 1, count_samples)))
+            pred = self.qrf.predict(
+                X, quantiles=list(np.linspace(0, 1, count_samples))
+            )
 
             self.logger.debug(
                 f"Generating beta distribution with a={mean_quantile/(1-mean_quantile)}"
             )
             random_generator = np.random.default_rng(self.seed)
             a = mean_quantile / (1 - mean_quantile)
-            input_quantiles = random_generator.beta(a, 1, size=len(X)) * count_samples
+            input_quantiles = (
+                random_generator.beta(a, 1, size=len(X)) * count_samples
+            )
             input_quantiles = input_quantiles.astype(int)
 
             # Handle edge cases to prevent index errors
             input_quantiles = np.clip(input_quantiles, 0, count_samples - 1)
 
-            self.logger.debug(f"Extracting predictions from shape {pred.shape}")
+            self.logger.debug(
+                f"Extracting predictions from shape {pred.shape}"
+            )
             if len(pred.shape) == 2:
                 predictions = pred[np.arange(len(pred)), input_quantiles]
             else:
@@ -189,7 +227,9 @@ class QRF:
 
         except Exception as e:
             self.logger.error(f"Prediction failed: {str(e)}")
-            raise RuntimeError("Failed to generate predictions with QRF model") from e
+            raise RuntimeError(
+                "Failed to generate predictions with QRF model"
+            ) from e
 
     @validate_call(config=VALIDATE_CONFIG)
     def save(self, path: str) -> None:
