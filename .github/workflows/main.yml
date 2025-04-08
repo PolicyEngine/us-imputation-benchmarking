@@ -34,7 +34,7 @@ jobs:
       shell: Rscript {0}
     
     - name: Install Python dependencies
-      run: uv pip install -e .[dev] --system
-    
+      run: uv pip install -e ".[dev,docs]" --system
+      
     - name: Test with pytest
       run: make test
