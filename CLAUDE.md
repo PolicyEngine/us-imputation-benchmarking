@@ -1,4 +1,4 @@
-# US Imputation Benchmarking - Developer Guide
+# MicroImpute - Developer Guide
 
 ## Code Style Guidelines
 

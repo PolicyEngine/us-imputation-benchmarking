@@ -1,0 +1,31 @@
+format: jb-book
+root: index
+
+parts: 
+
+  - caption: Models
+    chapters:
+      - file: models/imputer/index
+        sections:
+          - file: models/imputer/implement-new-model
+      - file: models/matching/index
+        sections:
+          - file: models/matching/matching-imputation
+      - file: models/ols/index
+        sections:
+          - file: models/ols/ols-imputation
+      - file: models/qrf/index
+        sections:
+          - file: models/qrf/qrf-imputation
+      - file: models/quantreg/index
+        sections:
+          - file: models/quantreg/quantreg-imputation
+  - caption: Imputation and benchmarking
+    chapters:
+      - file: imputation-benchmarking/index
+        sections:
+          - file: imputation-benchmarking/benchmarking-methods
+          - file: imputation-benchmarking/imputing-across-surveys
+  - caption: CPS example
+    chapters:
+      - file: examples/cps/index

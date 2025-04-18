@@ -1,11 +1,27 @@
 install:
-	pip install -e .[dev]
+	pip install -e ".[dev,docs]"
 
 test:
-	pytest us_imputation_benchmarking/tests/ --maxfail=0
-	pytest us_imputation_benchmarking/tests -s
+	pytest microimpute/tests/ --cov=microimpute --cov-report=xml --maxfail=0
+
+check-format:
+	linecheck .
+	isort --check-only --profile black microimpute/
+	black . -l 79 --check
 
 format:
-	black . -l 79
 	linecheck . --fix
-	isort us_imputation_benchmarking/
+	isort --profile black microimpute/
+	black . -l 79
+
+documentation:
+	cd docs && jupyter-book build .
+	python docs/add_plotly_to_book.py docs/_build/html
+
+build:
+	pip install build
+	python -m build
+
+clean:
+	rm -rf dist/ build/ *.egg-info/
+	rm -rf docs/_build/
