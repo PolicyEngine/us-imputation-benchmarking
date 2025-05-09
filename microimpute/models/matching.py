@@ -260,7 +260,8 @@ class Matching(Imputer):
             X_train: DataFrame containing the donor data.
             predictors: List of column names to use as predictors.
             imputed_variables: List of column names to impute.
-            matching_kwargs: Additional keyword arguments for the matching function.
+            matching_kwargs: Additional keyword arguments for hyperparameter
+                tuning of the matching function.
 
         Returns:
             The fitted model instance.

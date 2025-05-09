@@ -79,7 +79,7 @@ class OLSResults(ImputerResults):
                             mean_preds=mean_preds,
                             se=se,
                             mean_quantile=q,
-                            random_sample=False,
+                            random_sample=random_quantile_sample,
                         )
                     imputations[q] = pd.DataFrame(imputed_df)
             else:
@@ -116,11 +116,13 @@ class OLSResults(ImputerResults):
         """Predict values at a specified quantile.
 
         Args:
-            mean_pred: Mean predictions from the model.
+            mean_preds: Mean predictions from the model.
             se: Standard error of the predictions.
-            mean_quantile: Quantile to predict (the quantile affects the center of the beta distribution from which to sample when imputing each data point).
-            count_samples: Number of quantile samples to generate.
+            mean_quantile: Quantile to predict (the quantile affects the center
+                of the beta distribution from which to sample when imputing each data point).
             random_sample: If True, use random quantile sampling for prediction.
+            count_samples: Number of quantile samples to generate when
+                random_sample is True.
 
         Returns:
             Array of predicted values at the specified quantile.
@@ -129,7 +131,7 @@ class OLSResults(ImputerResults):
             RuntimeError: If prediction fails.
         """
         try:
-            if random_sample:
+            if random_sample == True:
                 self.logger.info(
                     f"Predicting at random quantiles sampled from a beta distribution with mean quantile {mean_quantile}"
                 )

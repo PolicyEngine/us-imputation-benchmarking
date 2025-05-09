@@ -4,12 +4,18 @@ This module integrates all steps necessary for method selection and imputation o
 """
 
 import logging
+import warnings
+from functools import partial
 from typing import Any, Dict, List, Optional, Type
 
+import joblib
 import pandas as pd
 from pydantic import validate_call
+from rpy2.robjects import pandas2ri
+from tqdm.auto import tqdm
 
 from microimpute.comparisons import *
+from microimpute.comparisons.data import preprocess_data
 from microimpute.config import (
     QUANTILES,
     RANDOM_STATE,
@@ -78,6 +84,15 @@ def autoimpute(
     # Set up logging level based on verbose parameter
     log_level = logging.INFO if verbose else logging.WARNING
     log.setLevel(log_level)
+    warnings.filterwarnings("ignore")
+
+    # Set up parallel processing
+    n_jobs: Optional[int] = -1
+
+    # Create a progress tracking system
+    if verbose:
+        main_progress = tqdm(total=4, desc="AutoImputation progress")
+        main_progress.set_description("Input validation")
 
     # Step 0: Input validation
     try:
@@ -133,6 +148,11 @@ def autoimpute(
             raise ValueError(error_msg)
 
         # Step 1: Data preparation
+        if verbose:
+            log.info("Preprocessing data...")
+            main_progress.update(1)
+            main_progress.set_description("Data preparation")
+
         # If imputed variables are in receiver data, remove them
         receiver_data = receiver_data.drop(
             columns=imputed_variables, errors="ignore"
@@ -168,12 +188,16 @@ def autoimpute(
             for orig_col, dummy_cols in dummy_info.items():
                 if orig_col in predictors:
                     predictors.remove(orig_col)
-                    predictors + dummy_cols
+                    predictors.extend(dummy_cols)
                 elif orig_col in imputed_variables:
                     imputed_variables.remove(orig_col)
-                    imputed_variables + dummy_cols
+                    imputed_variables.extend(dummy_cols)
 
         # Step 2: Imputation with each method
+        if verbose:
+            main_progress.update(1)
+            main_progress.set_description("Model evaluation")
+
         if not models:
             # If no models are provided, use default models
             model_classes: List[Type[Imputer]] = [QRF, OLS, QuantReg, Matching]
@@ -191,48 +215,105 @@ def autoimpute(
                         log.info(
                             f"Using hyperparameters for QRF: {model_params}"
                         )
+                    elif model_name == "Matching":
+                        log.info(
+                            f"Using hyperparameters for Matching: {model_params}"
+                        )
                 else:
                     log.info(
                         f"None of the hyperparameters provided are relevant for the supported models: {model_names}. Using default hyperparameters."
                     )
 
         method_test_losses = {}
-        for model in model_classes:
-            if hyperparameters and model.__name__ in hyperparameters:
-                cv_results = cross_validate_model(
-                    model_class=model,
-                    data=training_data,
-                    predictors=predictors,
-                    imputed_variables=imputed_variables,
-                    quantiles=quantiles,
-                    n_splits=k_folds,
-                    random_state=RANDOM_STATE,
-                    model_hyperparams=hyperparameters[model.__name__],
-                )
-            else:
-                if tune_hyperparameters:
-                    cv_results = cross_validate_model(
-                        model_class=model,
-                        data=training_data,
-                        predictors=predictors,
-                        imputed_variables=imputed_variables,
-                        quantiles=quantiles,
-                        n_splits=k_folds,
-                        random_state=RANDOM_STATE,
-                        tune_hyperparameters=True,
-                    )
-                else:
-                    cv_results = cross_validate_model(
-                        model_class=model,
-                        data=training_data,
-                        predictors=predictors,
-                        imputed_variables=imputed_variables,
-                        quantiles=quantiles,
-                        n_splits=k_folds,
-                        random_state=RANDOM_STATE,
-                    )
+        log.info(
+            "Hyperparameter tuning and cross-validation for model comparisson in progress... "
+        )
 
-            method_test_losses[model.__name__] = cv_results.loc["test"]
+        def evaluate_model(
+            model: Type[Imputer],
+            data: pd.DataFrame,
+            predictors: List[str],
+            imputed_variables: List[str],
+            quantiles: List[float],
+            k_folds: Optional[int] = 5,
+            random_state: Optional[bool] = RANDOM_STATE,
+            tune_hyperparams: Optional[bool] = True,
+            hyperparameters: Optional[Dict[str, Any]] = None,
+        ) -> tuple[str, pd.DataFrame]:
+            """Evaluate a single imputation model with cross-validation.
+
+            Args:
+                model: The imputation model class to evaluate
+                data: The dataset to use for evaluation
+                predictors: List of predictor column names
+                imputed_variables: List of columns to impute
+                quantiles: List of quantiles to evaluate
+                k_folds: Number of cross-validation folds
+                random_state: Random seed for reproducibility
+                tune_hyperparams: Whether to tune hyperparameters
+                hyperparameters: Optional model-specific hyperparameters
+
+            Returns:
+                Tuple containing model name and cross-validation results DataFrame
+            """
+            model_name = model.__name__
+            log.info(f"Evaluating {model_name}...")
+
+            # For Matching model using R, we need to activate converters in this thread
+            if model_name == "Matching":
+                # Explicitly activate pandas-to-R conversion for this thread
+                from rpy2.robjects import numpy2ri, pandas2ri
+
+                pandas2ri.activate()
+                numpy2ri.activate()
+
+            return model_name, cross_validate_model(
+                model_class=model,
+                data=data,
+                predictors=predictors,
+                imputed_variables=imputed_variables,
+                quantiles=quantiles,
+                n_splits=k_folds,
+                random_state=random_state,
+                model_hyperparams=hyperparameters,
+            )
+
+        # Special handling for models that use rpy2
+        # Use sequential processing for Matching model to avoid thread context issues
+        has_matching = any(
+            model.__name__ == "Matching" for model in model_classes
+        )
+        if has_matching and n_jobs != 1:
+            log.info(
+                "Using sequential processing (n_jobs=1) because Matching model is present"
+            )
+            n_jobs = 1
+
+        parallel_tasks = []
+        for model in model_classes:
+            parallel_tasks.append(
+                (
+                    model,
+                    training_data,
+                    predictors,
+                    imputed_variables,
+                    quantiles,
+                    k_folds,
+                    RANDOM_STATE,
+                    tune_hyperparameters,
+                    hyperparameters,
+                )
+            )
+
+        # Execute in parallel
+        results = joblib.Parallel(n_jobs=n_jobs)(
+            joblib.delayed(lambda args: evaluate_model(*args))(task)
+            for task in tqdm(parallel_tasks, desc="Evaluating models")
+        )
+
+        # Process results
+        for model_name, cv_result in results:
+            method_test_losses[model_name] = cv_result.loc["test"]
 
         method_results_df = pd.DataFrame.from_dict(
             method_test_losses, orient="index"
@@ -240,6 +321,10 @@ def autoimpute(
 
         # Step 3: Compare imputation methods
         log.info(f"Comparing across {model_classes} methods. ")
+
+        if verbose:
+            main_progress.update(1)
+            main_progress.set_description("Model selection")
 
         # add a column called "mean_loss" with the average loss across quantiles
         method_results_df["mean_loss"] = method_results_df.mean(axis=1)
@@ -253,6 +338,14 @@ def autoimpute(
         )
 
         # Step 5: Generate imputations with the best method on the receiver data
+        log.info(
+            f"Generating imputations using the best method: {best_method} on the receiver data. "
+        )
+
+        if verbose:
+            main_progress.update(1)
+            main_progress.set_description("Imputation")
+
         models_dict = {model.__name__: model for model in model_classes}
         chosen_model = models_dict[best_method]
 
@@ -295,6 +388,10 @@ def autoimpute(
         log.info(
             f"Imputation generation completed for {len(receiver_data)} samples using the best method: {best_method} and the median quantile. "
         )
+
+        if verbose:
+            main_progress.set_description("Complete")
+            main_progress.close()
 
         median_imputations = unnormalized_imputations[
             0.5

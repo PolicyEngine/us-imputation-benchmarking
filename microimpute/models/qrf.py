@@ -45,7 +45,10 @@ class QRFResults(ImputerResults):
 
         Args:
             X_test: DataFrame containing the test data.
-            quantiles: List of quantiles to predict (the quantile affects the center of the beta distribution from which to sample when imputing each data point).
+            quantiles: List of quantiles to predict (the quantile affects the
+                center of the beta distribution from which to sample when imputing each data point).
+            mean_quantile: The mean quantile to used for prediction if
+                quantiles are not provided.
 
         Returns:
             Dictionary mapping quantiles to predicted values.

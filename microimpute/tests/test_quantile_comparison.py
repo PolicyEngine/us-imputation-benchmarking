@@ -72,7 +72,7 @@ def test_quantile_comparison_scf() -> None:
         # Retrieve new predictors after processed data
         for orig_col, dummy_cols in dummy_info.items():
             IMPUTED_VARIABLES.remove(orig_col)
-            IMPUTED_VARIABLES + dummy_cols
+            IMPUTED_VARIABLES += dummy_cols
 
     # Shrink down the data by sampling
     X_train = X_train.sample(frac=0.01, random_state=RANDOM_STATE)

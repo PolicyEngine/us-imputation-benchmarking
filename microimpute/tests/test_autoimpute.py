@@ -3,13 +3,14 @@ Test the autoimpute function.
 """
 
 import pandas as pd
+from rpy2.robjects import pandas2ri
 from sklearn.datasets import load_diabetes
 
 from microimpute.comparisons.autoimpute import autoimpute
 from microimpute.visualizations.plotting import *
 
 
-def test_autoimpute_basic():
+def test_autoimpute_basic() -> None:
     """Test that autoimpute returns expected data structures."""
     diabetes = load_diabetes()
     diabetes_donor = pd.DataFrame(
@@ -31,6 +32,7 @@ def test_autoimpute_basic():
             "QRF": {"n_estimators": 100},
             "Matching": {"constrained": True},
         },
+        verbose=True,
     )
 
     # Check that the imputations is a dictionary of dataframes

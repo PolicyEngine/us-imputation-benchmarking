@@ -6,11 +6,14 @@ each fold to provide robust performance estimates.
 """
 
 import logging
-from typing import List, Optional, Type
+from functools import partial
+from typing import Dict, List, Optional, Tuple, Type
 
+import joblib
 import numpy as np
 import pandas as pd
 from pydantic import validate_call
+from rpy2.robjects import pandas2ri
 from sklearn.model_selection import KFold
 
 from microimpute.comparisons.quantile_loss import quantile_loss
@@ -30,7 +33,7 @@ def cross_validate_model(
     imputed_variables: List[str],
     quantiles: Optional[List[float]] = QUANTILES,
     n_splits: int = 5,
-    random_state: int = RANDOM_STATE,
+    random_state: Optional[int] = RANDOM_STATE,
     model_hyperparams: Optional[dict] = None,
     tune_hyperparameters: Optional[bool] = False,
 ) -> pd.DataFrame:
@@ -59,6 +62,9 @@ def cross_validate_model(
         ValueError: If input data is invalid or missing required columns.
         RuntimeError: If cross-validation fails.
     """
+    # Set up parallel processing
+    n_jobs: Optional[int] = -1
+
     try:
         # Validate predictor and imputed variable columns exist
         missing_predictors = [
@@ -98,8 +104,26 @@ def cross_validate_model(
         # Set up k-fold cross-validation
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
-        # Perform cross-validation
-        for fold_idx, (train_idx, test_idx) in enumerate(kf.split(data)):
+        # Create parallel-ready fold indices
+        fold_indices = list(kf.split(data))
+
+        # Define the function to process a single fold
+        def process_single_fold(
+            fold_idx_pair,
+        ) -> Tuple[Dict, Dict, np.ndarray, np.ndarray]:
+            """Process a single CV fold and return results.
+
+            Args:
+                fold_idx_pair: Tuple of (train_indices, test_indices)
+
+            Returns:
+                Tuple containing:
+                - Dictionary of test predictions for each quantile
+                - Dictionary of train predictions for each quantile
+                - Array of actual train values
+                - Array of actual test values
+            """
+            fold_idx, (train_idx, test_idx) = fold_idx_pair
             log.info(f"Processing fold {fold_idx+1}/{n_splits}")
 
             # Split data for this fold
@@ -109,149 +133,208 @@ def cross_validate_model(
             # Store actual values for this fold
             train_y = train_data[imputed_variables].values
             test_y = test_data[imputed_variables].values
-            train_y_values.append(train_y)
-            test_y_values.append(test_y)
 
-            try:
-                # Instantiate the model
-                log.info(f"Initializing {model_class.__name__} model")
-                model = model_class()
+            # Instantiate the model
+            log.info(f"Initializing {model_class.__name__} model")
+            model = model_class()
 
-                # Handle different model fitting requirements
-                if (
-                    model_hyperparams
-                    and model_class.__name__ == "QRF"
-                    and ("QRF" in model_hyperparams)
-                ):
-                    try:
-                        log.info(
-                            f"Fitting {model_class.__name__} model with hyperparameters: {model_hyperparams}"
-                        )
-                        fitted_model = model.fit(
-                            X_train=train_data,
-                            predictors=predictors,
-                            imputed_variables=imputed_variables,
-                            **model_hyperparams[
-                                "QRF"
-                            ],  # Unpack all provided hyperparameters
-                        )
-                    except TypeError as e:
-                        log.warning(
-                            f"Invalid hyperparameters, using defaults: {str(e)}"
-                        )
-                        fitted_model = model.fit(
-                            X_train=train_data,
-                            predictors=predictors,
-                            imputed_variables=imputed_variables,
-                        )
-                        raise ValueError(
-                            f"Invalid hyperparameters for model initialization. Current model hyperparameters: {fitted_model.models[imputed_variables[0]].qrf.get_params()}"
-                        ) from e
-                    if (
-                        model_hyperparams
-                        and model_class.__name__ == "Matching"
-                        and ("Matching" in model_hyperparams)
-                    ):
-                        try:
-                            log.info(
-                                f"Fitting {model_class.__name__} model with hyperparameters: {model_hyperparams}"
-                            )
-                            fitted_model = model.fit(
-                                X_train=train_data,
-                                predictors=predictors,
-                                imputed_variables=imputed_variables,
-                                **model_hyperparams[
-                                    "Matching"
-                                ],  # Unpack all provided hyperparameters
-                            )
-                        except TypeError as e:
-                            log.warning(
-                                f"Invalid hyperparameters, using defaults: {str(e)}"
-                            )
-                            fitted_model = model.fit(
-                                X_train=train_data,
-                                predictors=predictors,
-                                imputed_variables=imputed_variables,
-                            )
-                            raise ValueError(
-                                f"Invalid hyperparameters for model initialization. Current model hyperparameters: dist_fun=Manhattan, constrained=False"
-                            ) from e
-
+            # Handle different model fitting requirements
+            if (
+                model_hyperparams
+                and model_class.__name__ == "QRF"
+                and ("QRF" in model_hyperparams)
+            ):
+                try:
+                    log.info(
+                        f"Fitting {model_class.__name__} model with hyperparameters: {model_hyperparams}"
+                    )
+                    fitted_model = model.fit(
+                        X_train=train_data,
+                        predictors=predictors,
+                        imputed_variables=imputed_variables,
+                        **model_hyperparams["QRF"],
+                    )
+                except TypeError as e:
+                    log.warning(
+                        f"Invalid hyperparameters, using defaults: {str(e)}"
+                    )
+                    fitted_model = model.fit(
+                        X_train=train_data,
+                        predictors=predictors,
+                        imputed_variables=imputed_variables,
+                    )
+                    raise ValueError(
+                        f"Invalid hyperparameters for model initialization. Current model hyperparameters: {fitted_model.models[imputed_variables[0]].qrf.get_params()}"
+                    ) from e
+            elif (
+                model_hyperparams
+                and model_class.__name__ == "Matching"
+                and ("Matching" in model_hyperparams)
+            ):
+                try:
+                    log.info(
+                        f"Fitting {model_class.__name__} model with hyperparameters: {model_hyperparams}"
+                    )
+                    fitted_model = model.fit(
+                        X_train=train_data,
+                        predictors=predictors,
+                        imputed_variables=imputed_variables,
+                        **model_hyperparams["Matching"],
+                    )
+                except TypeError as e:
+                    log.warning(
+                        f"Invalid hyperparameters, using defaults: {str(e)}"
+                    )
+                    fitted_model = model.fit(
+                        X_train=train_data,
+                        predictors=predictors,
+                        imputed_variables=imputed_variables,
+                    )
+                    raise ValueError(
+                        f"Invalid hyperparameters for model initialization. Current model hyperparameters: dist_fun=Manhattan, constrained=False"
+                    ) from e
+            else:
+                if model_class == QuantReg:
+                    log.info(f"Fitting QuantReg model with explicit quantiles")
+                    fitted_model = model.fit(
+                        train_data,
+                        predictors,
+                        imputed_variables,
+                        quantiles=quantiles,
+                    )
+                elif (
+                    model_class == QRF or model_class == Matching
+                ) and tune_hyperparameters == True:
+                    log.info(
+                        f"Tuning {model_class.__name__} hyperparameters when fitting"
+                    )
+                    fitted_model = model.fit(
+                        train_data,
+                        predictors,
+                        imputed_variables,
+                        tune_hyperparameters=True,
+                    )
                 else:
-                    if model_class == QuantReg:
-                        log.info(
-                            f"Fitting QuantReg model with explicit quantiles"
-                        )
-                        fitted_model = model.fit(
-                            train_data,
-                            predictors,
-                            imputed_variables,
-                            quantiles=quantiles,
-                        )
-                    elif (
-                        model_class == QRF or model_class == Matching
-                    ) and tune_hyperparameters == True:
-                        log.info(
-                            f"Tuning {model_class.__name__} hyperparameters when fitting"
-                        )
-                        fitted_model = model.fit(
-                            train_data,
-                            predictors,
-                            imputed_variables,
-                            tune_hyperparameters=True,
-                        )
-                    else:
-                        log.info(f"Fitting {model_class.__name__} model")
-                        fitted_model = model.fit(
-                            train_data, predictors, imputed_variables
-                        )
+                    log.info(f"Fitting {model_class.__name__} model")
+                    fitted_model = model.fit(
+                        train_data, predictors, imputed_variables
+                    )
 
-                # Get predictions for this fold
-                log.info(f"Generating predictions for train and test data")
-                fold_test_imputations = fitted_model.predict(
-                    test_data, quantiles
-                )
-                fold_train_imputations = fitted_model.predict(
-                    train_data, quantiles
-                )
+            # Get predictions for this fold
+            log.info(f"Generating predictions for train and test data")
+            fold_test_imputations = fitted_model.predict(test_data, quantiles)
+            fold_train_imputations = fitted_model.predict(
+                train_data, quantiles
+            )
 
-                # Store results for each quantile
-                for q in quantiles:
-                    test_results[q].append(fold_test_imputations[q])
-                    train_results[q].append(fold_train_imputations[q])
+            # Return results for this fold
+            return (
+                fold_idx,
+                fold_test_imputations,
+                fold_train_imputations,
+                test_y,
+                train_y,
+            )
 
-                log.info(f"Fold {fold_idx+1} completed successfully")
+        # Execute folds in parallel
+        fold_results = []
+        with joblib.Parallel(n_jobs=n_jobs, verbose=10) as parallel:
+            fold_results = parallel(
+                joblib.delayed(process_single_fold)((i, fold_pair))
+                for i, fold_pair in enumerate(fold_indices)
+            )
 
-            except Exception as fold_error:
-                log.error(f"Error in fold {fold_idx+1}: {str(fold_error)}")
-                raise RuntimeError(
-                    f"Failed during fold {fold_idx+1}: {str(fold_error)}"
-                ) from fold_error
+        # Organize results
+        test_results = {q: [] for q in quantiles}
+        train_results = {q: [] for q in quantiles}
+        test_y_values = []
+        train_y_values = []
 
-        # Calculate loss metrics
-        log.info("Computing loss metrics across all folds")
-        avg_test_losses = {q: [] for q in quantiles}
-        avg_train_losses = {q: [] for q in quantiles}
+        # Sort results by fold index to maintain order
+        fold_results.sort(key=lambda x: x[0])
 
-        for k in range(len(test_y_values)):
+        # Extract results
+        for (
+            _,
+            fold_test_imputations,
+            fold_train_imputations,
+            test_y,
+            train_y,
+        ) in fold_results:
+            test_y_values.append(test_y)
+            train_y_values.append(train_y)
+
+            # Store results for each quantile
             for q in quantiles:
-                # Flatten arrays for easier calculation
-                test_y_flat = test_y_values[k].flatten()
-                train_y_flat = train_y_values[k].flatten()
-                test_pred_flat = test_results[q][k].values.flatten()
-                train_pred_flat = train_results[q][k].values.flatten()
+                test_results[q].append(fold_test_imputations[q])
+                train_results[q].append(fold_train_imputations[q])
 
-                # Calculate the loss for this fold and quantile
-                test_loss = quantile_loss(q, test_y_flat, test_pred_flat)
-                train_loss = quantile_loss(q, train_y_flat, train_pred_flat)
+        # Calculate loss metrics (this can also be parallelized for large datasets)
+        log.info("Computing loss metrics across all folds")
 
-                # Store the mean loss
-                avg_test_losses[q].append(test_loss.mean())
-                avg_train_losses[q].append(train_loss.mean())
+        # Define a function to compute loss for a specific fold and quantile
+        def compute_fold_loss(fold_idx, quantile):
+            # Flatten arrays for easier calculation
+            test_y_flat = test_y_values[fold_idx].flatten()
+            train_y_flat = train_y_values[fold_idx].flatten()
+            test_pred_flat = test_results[quantile][fold_idx].values.flatten()
+            train_pred_flat = train_results[quantile][
+                fold_idx
+            ].values.flatten()
+
+            # Calculate the loss for this fold and quantile
+            test_loss = quantile_loss(quantile, test_y_flat, test_pred_flat)
+            train_loss = quantile_loss(quantile, train_y_flat, train_pred_flat)
+
+            return {
+                "fold": fold_idx,
+                "quantile": quantile,
+                "test_loss": test_loss.mean(),
+                "train_loss": train_loss.mean(),
+            }
+
+        # Create tasks for parallel loss computation
+        loss_tasks = [
+            (k, q) for k in range(len(test_y_values)) for q in quantiles
+        ]
+
+        # Compute losses in parallel if there are many folds/quantiles
+        if (
+            len(loss_tasks) > 10 and n_jobs != 1
+        ):  # Only parallelize if it's worth it
+            with joblib.Parallel(n_jobs=n_jobs) as parallel:
+                loss_results = parallel(
+                    joblib.delayed(compute_fold_loss)(fold_idx, q)
+                    for fold_idx, q in loss_tasks
+                )
+
+            # Organize loss results
+            avg_test_losses = {q: [] for q in quantiles}
+            avg_train_losses = {q: [] for q in quantiles}
+
+            for result in loss_results:
+                q = result["quantile"]
+                fold_idx = result["fold"]
+                avg_test_losses[q].append(result["test_loss"])
+                avg_train_losses[q].append(result["train_loss"])
 
                 log.debug(
-                    f"Fold {k+1}, q={q}: Train loss = {train_loss.mean():.6f}, Test loss = {test_loss.mean():.6f}"
+                    f"Fold {fold_idx+1}, q={q}: Train loss = {result['train_loss']:.6f}, Test loss = {result['test_loss']:.6f}"
                 )
+        else:
+            # Calculate losses sequentially for simpler cases
+            avg_test_losses = {q: [] for q in quantiles}
+            avg_train_losses = {q: [] for q in quantiles}
+
+            for k in range(len(test_y_values)):
+                for q in quantiles:
+                    result = compute_fold_loss(k, q)
+                    avg_test_losses[q].append(result["test_loss"])
+                    avg_train_losses[q].append(result["train_loss"])
+
+                    log.debug(
+                        f"Fold {k+1}, q={q}: Train loss = {result['train_loss']:.6f}, Test loss = {result['test_loss']:.6f}"
+                    )
 
         # Calculate the average loss across all folds for each quantile
         log.info("Calculating final average metrics")

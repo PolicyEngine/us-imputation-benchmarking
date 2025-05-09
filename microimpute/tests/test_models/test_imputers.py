@@ -131,7 +131,7 @@ def test_fit_predict_interface(
     )
 
 
-def test_string_column_validation():
+def test_string_column_validation() -> None:
     """Test that the _validate_data method raises an error for string columns."""
     # Create a simple dataframe with a string column
     data = pd.DataFrame(
@@ -145,7 +145,7 @@ def test_string_column_validation():
 
     new_cols = []
     for orig_col, dummy_cols in dummy_info.items():
-        new_cols + dummy_cols
+        new_cols.extend(dummy_cols)
 
     new_cols.append("numeric_col")
     # Test that it raises a ValueError with the expected message

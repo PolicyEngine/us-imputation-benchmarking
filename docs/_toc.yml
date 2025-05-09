@@ -31,6 +31,8 @@ parts:
       - file: autoimpute/index
         sections:
           - file: autoimpute/autoimpute
-  - caption: CPS example
+  - caption: SCF to CPS example
     chapters:
-      - file: examples/cps/index
+      - file: examples/scf_to_cps/index
+        sections:
+          - file: examples/scf_to_cps/imputing-from-scf-to-cps
