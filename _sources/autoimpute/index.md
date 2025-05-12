@@ -1,0 +1,5 @@
+# AutoImpute
+
+This documentation describes how the `autoimpute` function works to automize the entire method comparison, selection, and imputation pipeline in a single function.
+
+The pipeline begins with input validation to ensure all necessary columns exist and quantiles are properly specified. It then processes the donor and receiver datasets, handling categorical variables through preprocessing techniques to prepare them for model training and evaluation. At its core, AutoImpute employs cross-validation on the donor data to evaluate multiple imputation methods. Each model is assessed on its ability to accurately predict known values across different quantiles. The method with the lowest average loss across target variables and quantiles is automatically selected as the optimal approach for the specific dataset and imputation task. The chosen model is then trained on the complete donor dataset and applied to generate imputations for the missing values in the receiver data. Finally, the pipeline reintegrates these imputed values back into the original receiver dataset, producing a complete dataset ready for downstream analysis. 
