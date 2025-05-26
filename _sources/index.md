@@ -8,4 +8,4 @@ The framework currently supports the following imputation methods:
 - Quantile Regression Forests
 - Quantile Regression
 
-This is a work in progress that will soon include the ability to impute multiple variables at once, and automatically compare method performance for a specific dataset, choose the best, and impute with it. 
+This is a work in progress that will soon include the ability to impute categorical and boolean variables, as well as handling weighted data. 
