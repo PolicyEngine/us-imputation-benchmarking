@@ -16,7 +16,11 @@ from sklearn.model_selection import KFold
 
 from microimpute.comparisons.quantile_loss import quantile_loss
 from microimpute.config import QUANTILES, RANDOM_STATE, VALIDATE_CONFIG
-from microimpute.models.matching import Matching
+
+try:
+    from microimpute.models.matching import Matching
+except ImportError:  # optional dependency
+    Matching = None
 from microimpute.models.qrf import QRF
 from microimpute.models.quantreg import QuantReg
 
@@ -29,8 +33,9 @@ def cross_validate_model(
     data: pd.DataFrame,
     predictors: List[str],
     imputed_variables: List[str],
+    weight_col: Optional[str] = None,
     quantiles: Optional[List[float]] = QUANTILES,
-    n_splits: int = 5,
+    n_splits: Optional[int] = 5,
     random_state: Optional[int] = RANDOM_STATE,
     model_hyperparams: Optional[dict] = None,
     tune_hyperparameters: Optional[bool] = False,
@@ -43,6 +48,7 @@ def cross_validate_model(
         data: Full dataset to split into training and testing folds.
         predictors: Names of columns to use as predictors.
         imputed_variables: Names of columns to impute.
+        weight_col: Optional column name for sample weights.
         quantiles: List of quantiles to evaluate. Defaults to standard
             set if None.
         n_splits: Number of cross-validation folds.
@@ -156,6 +162,7 @@ def cross_validate_model(
                         X_train=train_data,
                         predictors=predictors,
                         imputed_variables=imputed_variables,
+                        weight_col=weight_col,
                         **model_hyperparams["QRF"],
                     )
                 except TypeError as e:
@@ -166,12 +173,14 @@ def cross_validate_model(
                         X_train=train_data,
                         predictors=predictors,
                         imputed_variables=imputed_variables,
+                        weight_col=weight_col,
                     )
                     raise ValueError(
                         f"Invalid hyperparameters for model initialization. Current model hyperparameters: {fitted_model.models[imputed_variables[0]].qrf.get_params()}"
                     ) from e
             elif (
                 model_hyperparams
+                and Matching is not None
                 and model_class.__name__ == "Matching"
                 and ("Matching" in model_hyperparams)
             ):
@@ -183,6 +192,7 @@ def cross_validate_model(
                         X_train=train_data,
                         predictors=predictors,
                         imputed_variables=imputed_variables,
+                        weight_col=weight_col,
                         **model_hyperparams["Matching"],
                     )
                 except TypeError as e:
@@ -193,6 +203,7 @@ def cross_validate_model(
                         X_train=train_data,
                         predictors=predictors,
                         imputed_variables=imputed_variables,
+                        weight_col=weight_col,
                     )
                     raise ValueError(
                         f"Invalid hyperparameters for model initialization. Current model hyperparameters: dist_fun=Manhattan, constrained=False"
@@ -204,10 +215,15 @@ def cross_validate_model(
                         train_data,
                         predictors,
                         imputed_variables,
+                        weight_col=weight_col,
                         quantiles=quantiles,
                     )
                 elif (
-                    model_class.__name__ in ("QRF", "Matching")
+                    model_class.__name__ == "QRF"
+                    or (
+                        Matching is not None
+                        and model_class.__name__ == "Matching"
+                    )
                 ) and tune_hyperparameters == True:
                     log.info(
                         f"Tuning {model_class.__name__} hyperparameters when fitting"
@@ -216,6 +232,7 @@ def cross_validate_model(
                         train_data,
                         predictors,
                         imputed_variables,
+                        weight_col=weight_col,
                         tune_hyperparameters=True,
                     )
                     fold_tuned_params = best_tuned_params
@@ -223,7 +240,10 @@ def cross_validate_model(
                 else:
                     log.info(f"Fitting {model_class.__name__} model")
                     fitted_model = model.fit(
-                        train_data, predictors, imputed_variables
+                        train_data,
+                        predictors,
+                        imputed_variables,
+                        weight_col=weight_col,
                     )
 
             # Get predictions for this fold
@@ -323,7 +343,8 @@ def cross_validate_model(
             avg_train_losses = {q: [] for q in quantiles}
 
             if (
-                model_class == QRF or model_class == Matching
+                model_class == QRF
+                or (Matching is not None and model_class == Matching)
             ) and tune_hyperparameters == True:
                 best_fold = fold_indices[0][0]
                 best_loss = float("inf")
@@ -357,7 +378,8 @@ def cross_validate_model(
             avg_train_losses = {q: [] for q in quantiles}
 
             if (
-                model_class == QRF or model_class == Matching
+                model_class == QRF
+                or (Matching is not None and model_class == Matching)
             ) and tune_hyperparameters == True:
                 best_fold = fold_indices[0][0]
                 best_loss = float("inf")

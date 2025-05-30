@@ -44,6 +44,19 @@ def test_matching_cross_validation(
             imputed_variables: List of variables to impute.
             quantiles: List of quantiles to predict.
     """
+    data, dummy_info = preprocess_data(
+        data,
+        full_data=True,
+        normalize=False,
+    )
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
+
     matching_results = cross_validate_model(
         Matching, data, predictors, imputed_variables
     )
@@ -154,10 +167,12 @@ def test_matching_hyperparameter_tuning(
 
     # Preprocess training and validation data
     X_train, dummy_info_train = preprocess_data(
-        train_data, full_data=True, train_size=1.0, test_size=0.0
+        train_data,
+        full_data=True,
     )
     X_valid, dummy_info_valid = preprocess_data(
-        valid_data, full_data=True, train_size=1.0, test_size=0.0
+        valid_data,
+        full_data=True,
     )
 
     # Initialize Matching models - one with default parameters, one with tuning

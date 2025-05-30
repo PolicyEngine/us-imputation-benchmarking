@@ -86,6 +86,9 @@ class PerformanceResults:
         logger.debug(
             f"Creating train-test performance plot from results shape {self.results.shape}"
         )
+        palette = px.colors.qualitative.Plotly
+        train_color = palette[2]
+        test_color = palette[3]
 
         try:
             logger.debug("Creating Plotly figure")
@@ -99,7 +102,7 @@ class PerformanceResults:
                         x=self.results.columns,
                         y=self.results.loc["train"],
                         name="Train",
-                        marker_color="rgba(0, 128, 0, 0.7)",
+                        marker_color=train_color,
                     )
                 )
 
@@ -111,7 +114,7 @@ class PerformanceResults:
                         x=self.results.columns,
                         y=self.results.loc["test"],
                         name="Test",
-                        marker_color="rgba(255, 0, 0, 0.7)",
+                        marker_color=test_color,
                     )
                 )
 
@@ -409,6 +412,7 @@ class MethodComparisonResults:
                 x="Percentile",
                 y=self.metric_name,
                 color="Method",
+                color_discrete_sequence=px.colors.qualitative.Plotly,
                 barmode="group",
                 title=title,
                 labels={

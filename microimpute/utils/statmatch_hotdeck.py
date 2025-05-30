@@ -111,15 +111,33 @@ def nnd_hotdeck_using_rpy2(
         # Create the correct matching indices matrix for StatMatch.create_fused
         recipient_indices = np.arange(1, len(receiver) + 1)
         mtc_ids_r = out_NND.rx2("mtc.ids")
+        log.debug(f"mtc_ids_r type: {type(mtc_ids_r)}")
+
         # Create the properly formatted 2-column matrix that create_fused expects
         if hasattr(mtc_ids_r, "ncol") and mtc_ids_r.ncol == 2:
             # Already a matrix with the right shape, use it directly
+            log.debug("Using mtc_ids_r directly as 2-column matrix")
             mtc_ids = mtc_ids_r
         else:
             mtc_array = np.array(mtc_ids_r)
+            log.debug(
+                f"mtc_array shape: {mtc_array.shape}, dtype: {mtc_array.dtype}"
+            )
+            log.debug(
+                f"Receiver length: {len(receiver)}, Donor length: {len(donor)}"
+            )
+
             # If we have a 1D array with strings, convert to integers
             if mtc_array.dtype.kind in ["U", "S"]:
                 mtc_array = np.array([int(x) for x in mtc_array])
+
+            # Check if mtc_array is empty or has unexpected shape
+            if mtc_array.size == 0:
+                log.error("mtc_array is empty!")
+                raise ValueError(
+                    "No matching indices returned from NND_hotdeck"
+                )
+
             # If the mtc.ids array has 2 values per recipient (recipient_idx, donor_idx pairs)
             if len(mtc_array) == 2 * len(receiver):
                 donor_indices = mtc_array.reshape(-1, 2)[:, 1]
@@ -132,12 +150,20 @@ def nnd_hotdeck_using_rpy2(
                     # Use the indices directly (up to the length of receiver)
                     donor_indices_valid = mtc_array[: len(receiver)]
                 else:
-                    # If we have too few indices, repeat the last ones to match length
+                    # If we have too few indices, check if array is empty first
+                    if len(mtc_array) == 0:
+                        log.error("Empty mtc_array!")
+                        raise ValueError("No matching indices available")
+                    log.warning(
+                        f"Too few matching indices: {len(mtc_array)} < {len(receiver)}"
+                    )
+                    # Use the first index if available, otherwise default to 1
+                    fill_value = mtc_array[-1] if len(mtc_array) > 0 else 1
                     donor_indices_valid = np.concatenate(
                         [
                             mtc_array,
                             np.repeat(
-                                mtc_array[-1], len(receiver) - len(mtc_array)
+                                fill_value, len(receiver) - len(mtc_array)
                             ),
                         ]
                     )
@@ -177,8 +203,19 @@ def nnd_hotdeck_using_rpy2(
 
     except ValueError:
         raise
+    except IndexError as e:
+        log.error(f"Index error in statistical matching: {e}")
+        log.error(
+            f"Receiver shape: {receiver.shape}, Donor shape: {donor.shape}"
+        )
+        log.error(f"Matching variables: {matching_variables}")
+        log.error(f"Z variables: {z_variables}")
+        raise RuntimeError(
+            f"Statistical matching failed with index error: {e}"
+        ) from e
     except Exception as e:
         log.error(f"Unexpected error in statistical matching: {e}")
+        log.error(f"Error type: {type(e).__name__}")
         raise RuntimeError(
             f"Statistical matching failed with unexpected error: {e}"
         ) from e

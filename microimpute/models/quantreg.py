@@ -223,7 +223,7 @@ class QuantReg(Imputer):
                     self.logger.info(f"Model for q={q} fitted successfully")
             else:
                 random_generator = np.random.default_rng(self.seed)
-                q = random_generator.uniform(0, 1)
+                q = 0.5
                 self.logger.info(
                     f"Fitting quantile regression for random quantile {q:.4f}"
                 )

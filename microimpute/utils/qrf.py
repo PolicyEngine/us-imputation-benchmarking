@@ -116,7 +116,12 @@ class QRF:
             )
 
             self.logger.info("Fitting QRF model...")
-            self.qrf.fit(X, y)
+            # Convert y to 1D array if it's a single column to avoid sklearn warning
+            if y.shape[1] == 1:
+                y_values = y.values.ravel()
+            else:
+                y_values = y.values
+            self.qrf.fit(X, y_values)
             self.logger.info("QRF model fitted successfully")
 
         except Exception as e:

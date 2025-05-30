@@ -15,12 +15,16 @@ def test_autoimpute_basic() -> None:
     diabetes_donor = pd.DataFrame(
         diabetes.data, columns=diabetes.feature_names
     )
+    # Add random boolean variable
+    diabetes_donor["bool"] = np.random.choice(
+        [True, False], size=len(diabetes_donor)
+    )
     diabetes_receiver = pd.DataFrame(
         diabetes.data, columns=diabetes.feature_names
     )
 
     predictors = ["age", "sex", "bmi", "bp"]
-    imputed_variables = ["s1", "s4"]
+    imputed_variables = ["s1", "bool"]
 
     imputations, imputed_data, fitted_model, method_results_df = autoimpute(
         donor_data=diabetes_donor,
