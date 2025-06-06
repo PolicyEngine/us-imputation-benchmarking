@@ -170,7 +170,7 @@ def autoimpute(
         original_imputed_variables = imputed_variables.copy()
 
         if normalize_data:
-            training_data[predictors], predictors_dummy_info, _ = (
+            training_data_predictors, predictors_dummy_info, _ = (
                 preprocess_data(
                     training_data[predictors],
                     full_data=True,
@@ -180,7 +180,7 @@ def autoimpute(
                 )
             )
             (
-                training_data[imputed_variables],
+                training_data_imputed_variables,
                 imputed_dummy_info,
                 normalizing_params,
             ) = preprocess_data(
@@ -197,15 +197,21 @@ def autoimpute(
                 test_size=(1 - train_size),
                 normalize=normalize_data,
             )
+
+            training_data = training_data_predictors.join(
+                training_data_imputed_variables
+            )
+            if weight_col:
+                training_data[weight_col] = donor_data[weight_col]
         else:
-            training_data[predictors], predictors_dummy_info = preprocess_data(
+            training_data_predictors, predictors_dummy_info = preprocess_data(
                 training_data[predictors],
                 full_data=True,
                 train_size=train_size,
                 test_size=(1 - train_size),
                 normalize=normalize_data,
             )
-            (training_data[imputed_variables], imputed_dummy_info) = (
+            training_data_imputed_variables, imputed_dummy_info = (
                 preprocess_data(
                     training_data[imputed_variables],
                     full_data=True,
@@ -221,17 +227,26 @@ def autoimpute(
                 test_size=(1 - train_size),
                 normalize=normalize_data,
             )
+            training_data = training_data_predictors.join(
+                training_data_imputed_variables
+            )
+            if weight_col:
+                training_data[weight_col] = donor_data[weight_col]
 
         # Update predictors based on dummy variable creation
-        if predictors_dummy_info:
-            for orig_col, dummy_cols in predictors_dummy_info.items():
+        if predictors_dummy_info and "column_mapping" in predictors_dummy_info:
+            for orig_col, dummy_cols in predictors_dummy_info[
+                "column_mapping"
+            ].items():
                 if orig_col in predictors:
                     predictors.remove(orig_col)
                     predictors.extend(dummy_cols)
 
         # Update imputed variables based on dummy variable creation
-        if imputed_dummy_info:
-            for orig_col, dummy_cols in imputed_dummy_info.items():
+        if imputed_dummy_info and "column_mapping" in imputed_dummy_info:
+            for orig_col, dummy_cols in imputed_dummy_info[
+                "column_mapping"
+            ].items():
                 if orig_col in imputed_variables:
                     imputed_variables.remove(orig_col)
                     imputed_variables.extend(dummy_cols)

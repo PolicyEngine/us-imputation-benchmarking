@@ -19,16 +19,9 @@ diabetes_df = pd.DataFrame(
     diabetes_data.data, columns=diabetes_data.feature_names
 )
 
-predictors = ["age", "sex", "bmi", "bp"]
-imputed_variables = ["s1", "s4"]
-
-diabetes_df = diabetes_df[predictors + imputed_variables]
-
 
 def test_qrf_cross_validation(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -40,6 +33,10 @@ def test_qrf_cross_validation(
             imputed_variables: List of variables to impute.
             quantiles: List of quantiles to predict.
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     qrf_results = cross_validate_model(
         QRF, data, predictors, imputed_variables
     )
@@ -61,8 +58,6 @@ def test_qrf_cross_validation(
 
 def test_qrf_example(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -80,7 +75,19 @@ def test_qrf_example(
         imputed_variables: List of target column names.
         quantiles: List of quantiles to predict.
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     X_train, X_test, dummy_info = preprocess_data(data)
+
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     # Initialize QRF model
     model = QRF()
@@ -120,8 +127,6 @@ def test_qrf_example(
 
 def test_qrf_hyperparameter_tuning(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -138,6 +143,10 @@ def test_qrf_hyperparameter_tuning(
         imputed_variables: List of target column names
         quantiles: List of quantiles to predict
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     # Split data for training and validation
     np.random.seed(42)  # For reproducible testing
     train_idx = np.random.choice(
@@ -155,6 +164,14 @@ def test_qrf_hyperparameter_tuning(
     X_valid, dummy_info_valid = preprocess_data(
         valid_data, full_data=True, train_size=1.0, test_size=0.0
     )
+
+    for col, dummy_cols in dummy_info_train["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     # Initialize QRF models - one with default parameters, one with tuning
     default_model = QRF()
@@ -262,8 +279,6 @@ def test_qrf_hyperparameter_tuning(
 
 def test_qrf_imputes_multiple_variables(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
 ) -> None:
     """
     Test that QRF can impute multiple variables.
@@ -275,7 +290,19 @@ def test_qrf_imputes_multiple_variables(
     Args:
         None
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     X_train, X_test, dummy_info = preprocess_data(data)
+
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     # Initialize QRF model
     model = QRF()

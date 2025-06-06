@@ -3,7 +3,7 @@
 A package for benchmarking different imputation methods using microdata.
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # Import data handling functions
 from microimpute.comparisons.data import prepare_scf_data, preprocess_data

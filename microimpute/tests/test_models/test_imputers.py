@@ -93,6 +93,14 @@ def test_fit_predict_interface(
 
     X_train, X_test, dummy_info = preprocess_data(diabetes_data)
 
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
+
     # Initialize the model
     model = model_class()
 
@@ -175,15 +183,18 @@ def test_imputation_categorical_bool_vars() -> None:
     # Add random categorical variable with three categories
     df["categorical"] = np.random.choice(["one", "two", "three"], size=len(df))
 
-    X_train, X_test, dummy_info = preprocess_data(df)
-
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["categorical", "bool"]
 
-    for old_col, new_cols in dummy_info["column_mapping"].items():
-        if old_col in imputed_variables:
-            imputed_variables.remove(old_col)
-            imputed_variables.extend(new_cols)
+    X_train, X_test, dummy_info = preprocess_data(df)
+
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     ols = OLS()
     fitted_ols = ols.fit(X_train, predictors, imputed_variables)
@@ -206,19 +217,31 @@ def test_weighted_training(
     # Create a simple positive weight column after preprocessing
     X_train["wgt"] = range(1, len(X_train) + 1)
 
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1"]
+
+    # Update column names to handle dummy variables
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
+
     model = model_class()
 
     if model_class.__name__ == "QuantReg":
         fitted = model.fit(
             X_train,
-            ["age", "sex", "bmi", "bp"],
-            ["s1"],
+            predictors,
+            imputed_variables,
             weight_col=X_train["wgt"],
             quantiles=QUANTILES,
         )
     else:
         fitted = model.fit(
-            X_train, ["age", "sex", "bmi", "bp"], ["s1"], weight_col="wgt"
+            X_train, predictors, imputed_variables, weight_col="wgt"
         )
 
     assert fitted is not None

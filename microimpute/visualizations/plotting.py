@@ -126,13 +126,14 @@ class PerformanceResults:
                 barmode="group",
                 width=figsize[0],
                 height=figsize[1],
+                paper_bgcolor="#F0F0F0",
+                plot_bgcolor="#F0F0F0",
                 legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99),
                 margin=dict(l=50, r=50, t=80, b=50),
             )
 
-            fig.update_yaxes(
-                showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)"
-            )
+            fig.update_xaxes(showgrid=False, zeroline=False)
+            fig.update_yaxes(showgrid=False, zeroline=False)
 
             if save_path:
                 try:
@@ -446,14 +447,15 @@ class MethodComparisonResults:
                 title_font_size=14,
                 xaxis_title_font_size=12,
                 yaxis_title_font_size=12,
+                paper_bgcolor="#F0F0F0",
+                plot_bgcolor="#F0F0F0",
                 legend_title="Method",
                 height=figsize[1],
                 width=figsize[0],
             )
 
-            fig.update_yaxes(
-                showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)"
-            )
+            fig.update_xaxes(showgrid=False, zeroline=False)
+            fig.update_yaxes(showgrid=False, zeroline=False)
 
             # Save or show the plot
             if save_path:

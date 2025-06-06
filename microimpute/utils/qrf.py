@@ -202,9 +202,10 @@ class QRF:
             self.logger.debug(
                 f"Making predictions with {count_samples} quantile samples"
             )
-            pred = self.qrf.predict(
-                X, quantiles=list(np.linspace(0, 1, count_samples))
-            )
+
+            eps = 1.0 / (count_samples + 1)  # or a fixed 1e-3, etc.
+            quantile_grid = np.linspace(eps, 1.0 - eps, count_samples)
+            pred = self.qrf.predict(X, quantiles=list(quantile_grid))
 
             self.logger.debug(
                 f"Generating beta distribution with a={mean_quantile/(1-mean_quantile)}"

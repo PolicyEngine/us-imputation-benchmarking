@@ -23,16 +23,9 @@ diabetes_df = pd.DataFrame(
     diabetes_data.data, columns=diabetes_data.feature_names
 )
 
-predictors = ["age", "sex", "bmi", "bp"]
-imputed_variables = ["s1", "s4"]
-
-diabetes_df = diabetes_df[predictors + imputed_variables]
-
 
 def test_matching_cross_validation(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -44,6 +37,10 @@ def test_matching_cross_validation(
             imputed_variables: List of variables to impute.
             quantiles: List of quantiles to predict.
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     data, dummy_info = preprocess_data(
         data,
         full_data=True,
@@ -78,8 +75,6 @@ def test_matching_cross_validation(
 
 def test_matching_example_use(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -97,7 +92,19 @@ def test_matching_example_use(
         imputed_variables: List of variables to impute.
         quantiles: List of quantiles to predict.
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     X_train, X_test, dummy_info = preprocess_data(data)
+
+    for col, dummy_cols in dummy_info["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     # Initialize Matching model
     model = Matching()
@@ -137,8 +144,6 @@ def test_matching_example_use(
 
 def test_matching_hyperparameter_tuning(
     data: pd.DataFrame = diabetes_df,
-    predictors: List[str] = predictors,
-    imputed_variables: List[str] = imputed_variables,
     quantiles: List[float] = QUANTILES,
 ) -> None:
     """
@@ -155,6 +160,10 @@ def test_matching_hyperparameter_tuning(
         imputed_variables: List of target column names
         quantiles: List of quantiles to predict
     """
+    predictors = ["age", "sex", "bmi", "bp"]
+    imputed_variables = ["s1", "s4"]
+    data = data[predictors + imputed_variables]
+
     # Split data for training and validation
     np.random.seed(42)  # For reproducible testing
     train_idx = np.random.choice(
@@ -174,6 +183,14 @@ def test_matching_hyperparameter_tuning(
         valid_data,
         full_data=True,
     )
+
+    for col, dummy_cols in dummy_info_train["column_mapping"].items():
+        if col in predictors:
+            predictors.remove(col)
+            predictors.extend(dummy_cols)
+        elif col in imputed_variables:
+            imputed_variables.remove(col)
+            imputed_variables.extend(dummy_cols)
 
     # Initialize Matching models - one with default parameters, one with tuning
     default_model = Matching()
