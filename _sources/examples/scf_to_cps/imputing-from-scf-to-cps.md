@@ -213,100 +213,72 @@ def load_scf(
     except Exception as e:
         logger.error(f"Error in _load: {str(e)}")
         raise
-```
 
-```python
+scf = load_scf(2022)
+
+# Create mapping from desired variable names to SCF column names
+scf_variable_mapping = {
+    "hhsex": "is_female",  # sex (is female yes/no) (hhsex)
+    "age": "age",  # age of respondent (age)
+    "race": "race", # race of respondent (race)
+    "kids": "own_children_in_household",  # number of children in household (kids)
+    "wageinc": "employment_income", # income from wages and salaries (wageinc)
+    "bussefarminc": "farm_self_employment_income",  # income from business, self-employment or farm (bussefarminc)
+    "intdivinc": "interest_dividend_income",  # income from interest and dividends (intdivinc)
+    "ssretinc": "pension_income",  # income from social security and retirement accounts (ssretinc)
+}
+
+original_columns = list(scf_variable_mapping.keys()) + ["networth", "wgt"]
+scf_df = pd.DataFrame({col: scf[col] for col in original_columns})
+scf_data = scf_df.rename(columns=scf_variable_mapping)
+
+# Convert hhsex to is_female (hhsex: 1=male, 2=female -> is_female: 0=male, 1=female)
+scf_data["is_female"] = (scf_data["is_female"] == 2).astype(int)
+
 predictors = [
-    "hhsex",  # sex of head of household
-    "age",  # age of respondent (hoh)
-    "married",  # marital status of respondent (hoh)
-    "kids",  # number of children in household
-    "race",  # race of respondent (hoh)
-    "income",  # total annual income of household
-    "wageinc",  # income from wages and salaries
-    "bussefarminc",  # income from business, self-employment or farm
-    "intdivinc",  # income from interest and dividends
-    "ssretinc",  # income from social security and retirement accounts
+    "is_female", # sex of head of household
+    "age", # age of head of household
+    "own_children_in_household", # number of children in household
+    "race",  # race of the head of household
+    "employment_income", # income from wages and salaries
+    "interest_dividend_income", # income from interest and dividends
+    "pension_income", # income from social security and retirement accounts
 ]
 
 imputed_variables = ["networth"]
 
-scf_data = load_scf(2022)
-scf_data = scf_data[predictors + imputed_variables]
-scf_marital_mapping = {
-    1: 1,  # Married - civilian spouse present -> Married
-    2: 5,  # Living with partner -> Never Married
-    3: 2,  # Separated -> Separated
-    4: 3,  # Divorced -> Divorced
-    5: 4,  # Widowed -> Widowed
-    6: 5,  # Never Married -> Never Married
-}
+weights = ["wgt"]
 
-# Apply the mapping to recode the marital status values
-scf_data["married"] = np.vectorize(scf_marital_mapping.get)(
-    scf_data["married"]
-)
+scf_data = scf_data[predictors + imputed_variables + weights]
 
-file_path = "/Users/movil1/Desktop/PYTHONJOBS/PolicyEngine/microimpute/docs/examples/data/Census CPS 2022.h5"
+weights_col = scf_data["wgt"].values
+weights_normalized = weights_col / weights_col.sum()
+scf_data_weighted = scf_data.sample(
+    n=len(scf_data),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+```
 
-household_df = pd.read_hdf(file_path, key="household")
-household_df = household_df.set_index("H_SEQ")
-person_df = pd.read_hdf(file_path, key="person")
-person_df = person_df.set_index("PH_SEQ")
-cps_data = pd.DataFrame()
-cps_data["household_id"] = household_df.index
-person_df["is_household_head"] = person_df.P_SEQ == 1
-cps_data["hhsex"] = (
-    person_df[person_df.is_household_head].loc[household_df.index].A_SEX.values
-)
-cps_data["age"] = (
-    person_df[person_df.is_household_head].loc[household_df.index].A_AGE.values
-)
-cps_data["married"] = (
-    person_df[person_df.is_household_head]
-    .loc[household_df.index]
-    .A_MARITL.values
-)
-person_df["is_child"] = person_df.A_AGE < 18
-cps_data["kids"] = (
-    person_df.groupby(person_df.index)
-    .is_child.sum()
-    .loc[household_df.index]
-    .values
-)
-cps_data["race"] = (
-    person_df[person_df.is_household_head]
-    .loc[household_df.index]
-    .PRDTRACE.values
-)
-cps_data["income"] = household_df.HTOTVAL.values
-cps_data["wageinc"] = household_df.HWSVAL.values
-cps_data["bussefarminc"] = (
-    household_df.HSEVAL.values + household_df.HFRVAL.values
-)
-cps_data["intdivinc"] = (
-    household_df.HINTVAL.values + household_df.HDIVVAL.values
-)
-cps_data["ssretinc"] = (
-    household_df.HSSVAL.values
-    + household_df.HSSIVAL.values
-    + household_df.HPENVAL.values
-)
+```python
+import ssl
+import requests
 
-cps_marital_mapping = {
-    1: 1,  # Married - civilian spouse present -> Married
-    2: 1,  # Married - AF spouse present -> Married
-    3: 1,  # Married - spouse absent -> Married
-    4: 4,  # Widowed -> Widowed
-    5: 3,  # Divorced -> Divorced
-    6: 2,  # Separated -> Separated
-    7: 5,  # Never married -> Never married
-}
+# Disable SSL verification warnings (only use in development environments)
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Apply the mapping to recode the marital status values
-cps_data["married"] = np.vectorize(cps_marital_mapping.get)(
-    cps_data["married"]
-)
+# Create unverified context for SSL connections
+ssl._create_default_https_context = ssl._create_unverified_context
+
+# Monkey patch the requests library to use the unverified context
+old_get = requests.get
+requests.get = lambda *args, **kwargs: old_get(*args, **{**kwargs, 'verify': False})
+
+from policyengine_us_data import CPS_2024
+cps_data = CPS_2024()
+#cps_data.generate()
+cps = cps_data.load_dataset()
 
 cps_race_mapping = {
     1: 1,  # White only -> WHITE
@@ -338,7 +310,60 @@ cps_race_mapping = {
 }
 
 # Apply the mapping to recode the race values
-cps_data["race"] = np.vectorize(cps_race_mapping.get)(cps_data["race"])
+cps["race"] = np.vectorize(cps_race_mapping.get)(cps["cps_race"])
+cps["farm_self_employment_income"] = cps["self_employment_income"] + cps["farm_income"]
+cps["interest_dividend_income"] = cps["taxable_interest_income"] + cps["tax_exempt_interest_income"] + cps["qualified_dividend_income"] + cps["non_qualified_dividend_income"]
+cps["pension_income"] = cps["tax_exempt_private_pension_income"] + cps["taxable_private_pension_income"] + cps["social_security_retirement"]
+
+mask_head = cps["is_household_head"]
+income_df = pd.DataFrame({
+    "household_id": cps["person_household_id"],
+    "employment_income": cps["employment_income"],
+    "farm_self_employment_income": cps["farm_self_employment_income"],
+    "interest_dividend_income": cps["interest_dividend_income"],
+    "pension_income": cps["pension_income"],
+})
+household_sums = (
+    income_df
+      .groupby("household_id")
+      .sum()
+      .reset_index()
+)
+heads = pd.DataFrame({
+    "household_id": cps["person_household_id"][mask_head],
+    "is_female":    cps["is_female"][mask_head],
+    "age":          cps["age"][mask_head],
+    "race":         cps["race"][mask_head],
+    "own_children_in_household": cps["own_children_in_household"][mask_head],
+})
+hh_level = heads.merge(household_sums, on="household_id", how="left")
+
+for name, series in cps.items():
+    if isinstance(series, pd.Series) and len(series) == len(hh_level):
+        if name not in hh_level.columns:
+            hh_level[name] = series.values
+
+
+cols = (
+    ["household_id"]
+    + [
+        "farm_self_employment_income",
+        "interest_dividend_income",
+        "pension_income",
+        "employment_income",
+    ]
+    + ["own_children_in_household", "is_female", "age", "race"]
+)
+cps_data = hh_level[cols]
+cps_data["household_weight"] = cps["household_weight"]
+
+household_weights = ["household_weight"]
+
+from policyengine_us import Microsimulation
+sim = Microsimulation(dataset=CPS_2022)
+net_disposable_income = sim.calculate("household_net_income")
+
+cps_data["household_net_income"] = net_disposable_income
 ```
 
 ## Running wealth imputation with autoimpute
@@ -358,11 +383,10 @@ imputations, imputed_data, fitted_model, method_results_df = autoimpute(
     receiver_data=cps_data,
     predictors=predictors,
     imputed_variables=imputed_variables,
+    weight_col=weights[0],
     tune_hyperparameters=True,  # enable automated hyperparameter tuning
-)
-
-print(
-    f"Shape of receiver data before imputation: {cps_data.shape} \nShape of receiver data after imputation: {imputed_data.shape}"
+    normalize_data=True,  # normalization
+    verbose=False,
 )
 ```
 
@@ -376,16 +400,16 @@ quantiles = [q for q in method_results_df.columns if isinstance(q, float)]
 
 comparison_viz = method_comparison_results(
     data=method_results_df,
-    metric_name="Test Quantile Loss",
+    metric_name="quantile loss",
     data_format="wide",
 )
 fig = comparison_viz.plot(
-    title="Autoimpute Method Comparison",
+    title="Autoimpute method comparison",
     show_mean=True,
 )
 ```
 
-![png](./scf_to_cps_loss.png)
+![png](./autoimpute_model_comparison.png)
 
 ## Evaluating wealth imputations
 
@@ -394,265 +418,515 @@ To assess the imputation results, a comparison the distribution of wealth in the
 Wealth distributions are typically highly skewed, with a long right tail representing a small number of households with very high net worth. A successful imputation should preserve this characteristic skewness while maintaining realistic values across the entire distribution. Examining both the raw distributions and log-transformed versions of wealth values can better capture important information for evaluation.
 
 ```python
-def plot_networth_distributions(
+def plot_log_transformed_net_worth_distributions(
     scf_data: pd.DataFrame,
     imputed_data: pd.DataFrame,
+    title: Optional[str] = None,
 ) -> go.Figure:
-    """Plot the distribution of net worth in SCF and imputed CPS data.
+    """Plot the log-transformed distribution of net worth in SCF and imputed CPS data."""
 
-    Args:
-        scf_data: DataFrame containing SCF data.
-        imputed_data: DataFrame containing imputed CPS data.
+    palette = px.colors.qualitative.Plotly
+    scf_color = '#1f77b4'   # palette[0]
+    cps_color = '#9467bd'   # palette[1]
+    scf_median_color = scf_color
+    cps_median_color = cps_color
+    scf_mean_color = scf_color
+    cps_mean_color = cps_color
 
-    Returns:
-        Plotly figure object.
-    """
-    logger.info("Plotting net worth distributions")
-
-    # 0. Check for missing values
-    if scf_data['networth'].isnull().any():
-        logger.warning("SCF data contains missing values in 'networth' column")
-    if imputed_data['networth'].isnull().any():
-        logger.warning("Imputed data contains missing values in 'networth' column")    
-    
-    # 1. Compute medians & means
-    scf_median = scf_data['networth'].median()
-    scf_mean   = scf_data['networth'].mean()
-    cps_median = imputed_data['networth'].median()
-    cps_mean   = imputed_data['networth'].mean()
-
-    # 2. Compute upper_limit & true max counts
-    upper_limit = np.percentile(scf_data['networth'], 99.5)
-    scf_counts, _ = np.histogram(scf_data['networth'], bins=150, range=(0,upper_limit))
-    cps_counts, _ = np.histogram(imputed_data['networth'], bins=150, range=(0,upper_limit))
-    max_scf = scf_counts.max()
-    max_cps = cps_counts.max()
-
-    # 3. Build subplots
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=[
-            "Distribution of Networth in SCF Data (Original)",
-            "Distribution of Imputed Networth in CPS Data"
-        ],
-        vertical_spacing=0.15
-    )
-
-    # 4. Add histograms
-    fig.add_trace(
-        go.Histogram(
-            x=scf_data['networth'],
-            nbinsx=150,
-            opacity=0.7,
-            marker_color='blue',
-            showlegend=False
-        ), row=1, col=1
-    )
-    fig.add_trace(
-        go.Histogram(
-            x=imputed_data['networth'],
-            nbinsx=150,
-            opacity=0.7,
-            marker_color='purple',
-            showlegend=False
-        ), row=2, col=1
-    )
-
-    # 5. Add full-height median/mean lines for SCF
-    fig.add_trace(
-        go.Scatter(
-            x=[scf_median, scf_median],
-            y=[0, 20000],
-            mode='lines',
-            line=dict(color='blue',   dash='dash'),
-            name=f"Median: ${scf_median:,.0f}",
-            legendgroup='scf'
-        ), row=1, col=1
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=[scf_mean, scf_mean],
-            y=[0, 20000],
-            mode='lines',
-            line=dict(color='blue', dash='dot'),
-            name=f"Mean: ${scf_mean:,.0f}",
-            legendgroup='scf'
-        ), row=1, col=1
-    )
-
-    # 6. Add full-height median/mean lines for CPS
-    fig.add_trace(
-        go.Scatter(
-            x=[cps_median, cps_median],
-            y=[0, 38000],
-            mode='lines',
-            line=dict(color='purple',   dash='dash'),
-            name=f"Median: ${cps_median:,.0f}",
-            legendgroup='cps'
-        ), row=2, col=1
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=[cps_mean, cps_mean],
-            y=[0, 38000],
-            mode='lines',
-            line=dict(color='purple', dash='dot'),
-            name=f"Mean: ${cps_mean:,.0f}",
-            legendgroup='cps'
-        ), row=2, col=1
-    )
-
-    # 7. Final layout tweaks
-    fig.update_layout(
-        title_text="Comparison of Original and Imputed Networth Distributions",
-        height=PLOT_CONFIG["height"],
-        width =PLOT_CONFIG["width"],
-        legend_tracegroupgap=180
-    )
-
-    # 8. Zoom x-axis to drop extreme outliers
-    fig.update_xaxes(range=[0, upper_limit], row=1, col=1, title_text="Networth")
-    fig.update_xaxes(range=[0, upper_limit], row=2, col=1, title_text="Networth")
-    fig.update_yaxes(title_text="Frequency", row=1, col=1)
-    fig.update_yaxes(title_text="Frequency", row=2, col=1)
-
-    return fig
-```
-
-![png](./scf_to_cps_networth_distribution.png)
-
-```python
-def plot_log_transformed_distributions(
-    scf_data: pd.DataFrame,
-    imputed_data: pd.DataFrame,
-) -> go.Figure:
-    """Plot the log-transformed distribution of net worth in SCF and imputed CPS data.
-    
-    Args:
-        scf_data: DataFrame containing SCF data.
-        imputed_data: DataFrame containing imputed CPS data.
-
-    Returns:
-        Plotly figure object.
-    """ 
-    # Create a log transformation function that handles negative values
     def safe_log(x):
-        # For negative values, take log of absolute value and negate
-        # For zero, replace with a small positive value
         sign = np.sign(x)
         log_x = np.log10(np.maximum(np.abs(x), 1e-10))
         return sign * log_x
 
-    # Create log-transformed data
-    scf_log = safe_log(scf_data['networth'])
-    cps_log = safe_log(imputed_data['networth'])
+    scf_log = safe_log(scf_data["networth"])
+    cps_log = safe_log(imputed_data["networth"])
 
-    # Calculate statistics for log-transformed data
-    scf_log_median = np.median(scf_log)
-    cps_log_median = np.median(cps_log)
-    scf_log_mean = np.mean(scf_log)
-    cps_log_mean = np.mean(cps_log)
+    scf_log_median, cps_log_median = np.median(scf_log), np.median(cps_log)
+    scf_log_mean, cps_log_mean     = np.mean(scf_log), np.mean(cps_log)
 
-    # Create a single plot with both distributions
     fig = go.Figure()
 
-    # Add histograms for both datasets
-    fig.add_trace(
-        go.Histogram(
-            x=scf_log,
-            nbinsx=60,
-            opacity=0.7,
-            name="SCF Log Networth",
-            marker_color='blue'
-        )
-    )
+    # histograms
+    fig.add_trace(go.Histogram(
+        x=scf_log,
+        nbinsx=150,
+        opacity=0.7,
+        name="SCF (weighted) log net worth",
+        marker_color=scf_color,
+    ))
+    fig.add_trace(go.Histogram(
+        x=cps_log,
+        nbinsx=150,
+        opacity=0.7,
+        name="CPS imputed log net worth",
+        marker_color=cps_color,
+    ))
 
-    fig.add_trace(
-        go.Histogram(
-            x=cps_log,
-            nbinsx=60,
-            opacity=0.7,
-            name="CPS Imputed Log Networth",
-            marker_color='purple'
-        )
-    )
+    # medians (dashed)
+    fig.add_trace(go.Scatter(
+        x=[scf_log_median, scf_log_median],
+        y=[0, 20],
+        mode="lines",
+        line=dict(color=scf_median_color, width=2, dash="dash"),
+        name=f"SCF median: ${10**scf_log_median:,.0f}",
+    ))
+    fig.add_trace(go.Scatter(
+        x=[cps_log_median, cps_log_median],
+        y=[0, 20],
+        mode="lines",
+        line=dict(color=cps_median_color, width=2, dash="dash"),
+        name=f"CPS median: ${10**cps_log_median:,.0f}",
+    ))
 
-    # Add vertical lines for medians
-    fig.add_trace(
-        go.Scatter(
-            x=[scf_log_median, scf_log_median],
-            y=[0, 10000],
-            mode="lines",
-            line=dict(color="blue", width=2, dash="dash"),
-            name=f"SCF Median: ${10**scf_log_median:,.0f}"
-        )
-    )
+    # means (dotted)
+    fig.add_trace(go.Scatter(
+        x=[scf_log_mean, scf_log_mean],
+        y=[0, 20],
+        mode="lines",
+        line=dict(color=scf_mean_color, width=2, dash="dot"),
+        name=f"SCF mean: ${10**scf_log_mean:,.0f}",
+    ))
+    fig.add_trace(go.Scatter(
+        x=[cps_log_mean, cps_log_mean],
+        y=[0, 20],
+        mode="lines",
+        line=dict(color=cps_mean_color, width=2, dash="dot"),
+        name=f"CPS mean: ${10**cps_log_mean:,.0f}",
+    ))
 
-    fig.add_trace(
-        go.Scatter(
-            x=[cps_log_median, cps_log_median],
-            y=[0, 10000],
-            mode="lines",
-            line=dict(color="purple", width=2, dash="dash"),
-            name=f"CPS Median: ${10**cps_log_median:,.0f}"
-        )
-    )
-
-    # Add vertical lines for means
-    fig.add_trace(
-        go.Scatter(
-            x=[scf_log_mean, scf_log_mean],
-            y=[0, 10000],
-            mode="lines",
-            line=dict(color="blue", width=2, dash="dot"),
-            name=f"SCF Mean: ${10**scf_log_mean:,.0f}"
-        )
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=[cps_log_mean, cps_log_mean],
-            y=[0, 10000],
-            mode="lines",
-            line=dict(color="purple", width=2, dash="dot"),
-            name=f"CPS Mean: ${10**cps_log_mean:,.0f}"
-        )
-    )
-
-    # Update layout with improved titles and labels
+    # layout
     fig.update_layout(
-        title="Log-Transformed Networth Distribution Comparison",
-        xaxis_title="Log10 of Networth",
+        title=title if title else "Log-transformed net worth distribution comparison",
+        xaxis_title="Net worth",
         yaxis_title="Frequency",
         height=PLOT_CONFIG["height"],
-        width=PLOT_CONFIG["width"], 
-        barmode='overlay',
+        width=PLOT_CONFIG["width"],
+        barmode="overlay",
         bargap=0.1,
         legend=dict(
-            x=0.01,
-            y=0.99,
-            bgcolor="rgba(255, 255, 255, 0.8)",
-            bordercolor="rgba(0, 0, 0, 0.3)",
+            x=0.01, y=0.99,
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="rgba(0,0,0,0.3)",
             borderwidth=1,
             orientation="v",
             xanchor="left",
-            yanchor="top"
-        )
+            yanchor="top",
+        ),
     )
 
-    # Add tick labels showing the actual dollar values
+    # custom ticks
     tick_values = [-6, -4, -2, 0, 2, 4, 6, 8]
-    tick_labels = ['$' + format(10**x if x >= 0 else -10**abs(x), ',.0f') for x in tick_values]
-    fig.update_xaxes(
-        tickvals=tick_values,
-        ticktext=tick_labels
-    )
+    tick_labels = [
+        "$" + format(10**x if x >= 0 else -(10**abs(x)), ",.0f")
+        for x in tick_values
+    ]
+    fig.update_xaxes(tickvals=tick_values, ticktext=tick_labels)
 
     return fig
+
+weights_col = cps_data["household_weight"].values
+weights_normalized = weights_col / weights_col.sum()
+imputed_data_weighted = imputed_data.sample(
+    n=len(imputed_data),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+
+
+plot_log_transformed_net_worth_distributions(scf_data_weighted, imputed_data_weighted).show()
 ```
 
-![png](./scf_to_cps_networth_log_transform.png)
+![png](./autoimpute_best_model_imputations.png)
 
 The logarithmic transformation provides a clearer view of the wealth distribution across its entire range. By logarithmically scaling the data, the extreme values are compressed while expanding the visibility of differences in the lower and middle portions of the distribution.
 
-This transformation is particularly valuable for wealth data, where values can span many orders of magnitude. The plot above, shows how closely the imputed CPS wealth distribution matches the original SCF distribution in terms of shape and central tendency. The vertical lines marking the mean and median values help gauge how these statistical properties have been preserved through the imputation process.
+This transformation is particularly valuable for wealth data, where values can span many orders of magnitude. The plot above, shows how closely the imputed CPS wealth distribution matches the original SCF distribution in terms of shape and central tendency after the imputation performed by the QRF model. The vertical lines marking the mean and median values help gauge how these statistical properties have been preserved through the imputation process.
+
+## Comparing with other methods
+
+```python
+donor_data = scf_data[predictors + imputed_variables + weights]
+receiver_data = cps_data[predictors + household_weights]
+
+donor_data, dummy_info, normalizing_params = preprocess_data(donor_data[predictors + imputed_variables], normalize=True, full_data=True)
+donor_data[weights[0]] = scf_data[weights[0]]
+receiver_data, dummy_info_cps, _ = preprocess_data(receiver_data[predictors], normalize=True, full_data=True)
+receiver_data["household_weight"] = cps_data["household_weight"]
+receiver_data["household_net_income"] = cps_data["household_net_income"]
+
+mean = pd.Series(
+    {col: p["mean"] for col, p in normalizing_params.items()}
+)
+std = pd.Series(
+    {col: p["std"] for col, p in normalizing_params.items()}
+)
+
+for col, dummy_cols in dummy_info["column_mapping"].items():
+    if col in predictors:
+        predictors.remove(col)
+        predictors.extend(dummy_cols)
+    elif col in imputed_variables:
+        imputed_variables.remove(col)
+        imputed_variables.extend(dummy_cols)
+
+from microimpute.models import *
+
+def impute_scf_to_cps(model: Type[Imputer], 
+                      donor_data: pd.DataFrame,
+                      receiver_data: pd.DataFrame,
+                      cps_data: pd.DataFrame,
+                      predictors: List[str],
+                      imputed_variables: List[str],
+                      weights: List[str]) -> pd.DataFrame:
+    """Impute SCF data into CPS data using the specified model."""
+    model = model()
+    fitted_model = model.fit(
+        X_train=donor_data,
+        predictors=predictors,
+        imputed_variables=imputed_variables,
+        weight_col=weights[0],
+    )
+    imputations = fitted_model.predict(X_test=receiver_data)
+
+    cps_imputed = cps_data.copy()
+    cps_imputed["networth"] = imputations[0.5]["networth"]
+
+    return cps_imputed
+
+quantreg_cps_imputed = impute_scf_to_cps(
+    model=QuantReg,
+    donor_data=donor_data,
+    receiver_data=receiver_data,
+    cps_data=cps_data,
+    predictors=predictors,
+    imputed_variables=imputed_variables,
+    weights=weights,
+)
+
+quantreg_cps_imputed["networth"] = quantreg_cps_imputed["networth"].mul(std["networth"])
+quantreg_cps_imputed["networth"] = quantreg_cps_imputed["networth"].add(mean["networth"])
+
+weights_col = receiver_data["household_weight"].values
+weights_normalized = weights_col / weights_col.sum()
+quantreg_cps_imputed_weighted = quantreg_cps_imputed.sample(
+    n=len(quantreg_cps_imputed),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+
+
+ols_cps_imputed = impute_scf_to_cps(
+    model=OLS,
+    donor_data=donor_data,
+    receiver_data=receiver_data,
+    cps_data=cps_data,
+    predictors=predictors,
+    imputed_variables=imputed_variables,
+    weights=weights,
+)
+
+ols_cps_imputed["networth"] = ols_cps_imputed["networth"].mul(std["networth"])
+ols_cps_imputed["networth"] = ols_cps_imputed["networth"].add(mean["networth"])
+
+ols_cps_imputed_weighted = ols_cps_imputed.sample(
+    n=len(ols_cps_imputed),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+
+matching_cps_imputed = impute_scf_to_cps(
+    model=Matching,
+    donor_data=donor_data,
+    receiver_data=receiver_data,
+    cps_data=cps_data,
+    predictors=predictors,
+    imputed_variables=imputed_variables,
+    weights=weights,
+)
+
+matching_cps_imputed["networth"] = matching_cps_imputed["networth"].mul(std["networth"])
+matching_cps_imputed["networth"] = matching_cps_imputed["networth"].add(mean["networth"])
+
+matching_cps_imputed_weighted = matching_cps_imputed.sample(
+    n=len(matching_cps_imputed),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+
+
+qrf_model = QRF()
+fitted_model, best_params = qrf_model.fit(
+    X_train=donor_data,
+    predictors=predictors,
+    imputed_variables=imputed_variables,
+    weight_col=weights[0],
+    tune_hyperparameters=True,
+)
+imputations = fitted_model.predict(X_test=receiver_data)
+
+qrf_cps_imputed = cps_data.copy()
+qrf_cps_imputed["networth"] = imputations[0.5]["networth"]
+
+qrf_cps_imputed["networth"] = qrf_cps_imputed["networth"].mul(std["networth"])
+qrf_cps_imputed["networth"] = qrf_cps_imputed["networth"].add(mean["networth"])
+
+qrf_cps_imputed_weighted = qrf_cps_imputed.sample(
+    n=len(qrf_cps_imputed),
+    replace=True,
+    weights=weights_normalized,
+).reset_index(drop=True)
+
+
+def plot_all_models_net_worth_log_distributions(
+    scf_data: pd.DataFrame,
+    model_results: dict,
+    title: Optional[str] = None,
+) -> go.Figure:
+    """Plot log-transformed net worth distributions for all models in a 2x2 grid.
+    
+    Args:
+        scf_data: Original SCF data with networth column
+        model_results: Dictionary mapping model names to their imputed dataframes
+        title: Optional title for the entire figure
+        
+    Returns:
+        Plotly figure with 4 subplots
+    """
+    from plotly.subplots import make_subplots
+    import plotly.graph_objects as go
+    
+    # Create subplots
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=list(model_results.keys()),
+        vertical_spacing=0.15,
+        horizontal_spacing=0.12,
+    )
+    
+    # Define safe log transformation
+    def safe_log(x):
+        sign = np.sign(x)
+        log_x = np.log10(np.maximum(np.abs(x), 1e-10))
+        return sign * log_x
+    
+    # Calculate SCF log values once
+    scf_log = safe_log(scf_data["networth"])
+    scf_log_median = np.median(scf_log)
+    scf_log_mean = np.mean(scf_log)
+    
+    # Define colors
+    scf_color = '#1f77b4'
+    palette = px.colors.qualitative.Plotly
+    model_colors = palette[:4]
+    
+    # Plot positions
+    positions = [(1, 1), (1, 2), (2, 1), (2, 2)]
+    
+    for idx, (model_name, imputed_data) in enumerate(model_results.items()):
+        row, col = positions[idx]
+        model_color = model_colors[idx]
+        
+        # Calculate model log values
+        model_log = safe_log(imputed_data["networth"])
+        model_log_median = np.median(model_log)
+        model_log_mean = np.mean(model_log)
+        
+        # Add SCF histogram (grey/transparent)
+        fig.add_trace(
+            go.Histogram(
+                x=scf_log,
+                nbinsx=150,
+                opacity=0.3,
+                name=f"SCF (weighted by sampling)",
+                marker_color='grey',
+                showlegend=(idx == 0),  # Only show in legend once
+            ),
+            row=row, col=col
+        )
+        
+        # Add model histogram
+        fig.add_trace(
+            go.Histogram(
+                x=model_log,
+                nbinsx=150,
+                opacity=0.7,
+                name=f"{model_name.replace(' imputations', '')}",
+                marker_color=model_color,
+                showlegend=True,
+            ),
+            row=row, col=col
+        )
+        
+        # Get y-axis range for vertical lines
+        fig.update_yaxes(range=[0, 2000], row=row, col=col)
+        
+        # Add median lines
+        fig.add_trace(
+            go.Scatter(
+                x=[scf_log_median, scf_log_median],
+                y=[0, 2000],
+                mode="lines",
+                line=dict(color='grey', width=2, dash="dash"),
+                name=f"SCF Median",
+                showlegend=False,
+            ),
+            row=row, col=col
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=[model_log_median, model_log_median],
+                y=[0, 2000],
+                mode="lines",
+                line=dict(color=model_color, width=2, dash="dash"),
+                name=f"{model_name} Median",
+                showlegend=False,
+            ),
+            row=row, col=col
+        )
+        
+        # Determine correct axis references for annotations
+        if idx == 0:
+            xref, yref = "x", "y"
+        elif idx == 1:
+            xref, yref = "x2", "y2"
+        elif idx == 2:
+            xref, yref = "x3", "y3"
+        else:
+            xref, yref = "x4", "y4"
+        
+        # Add text annotations for statistics
+        fig.add_annotation(
+            x=0,  # Position on the x-axis (log scale)
+            y=5000,  # Position on the y-axis
+            xref=xref,
+            yref=yref,
+            text=f"Median: ${10**model_log_median:,.0f}<br>Mean: ${10**model_log_mean:,.0f}",
+            showarrow=False,
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="rgba(0,0,0,0.3)",
+            borderwidth=1,
+            font=dict(size=10),
+            xanchor="right",
+            yanchor="top",
+        )
+    
+    # Update layout
+    fig.update_layout(
+        title=title if title else "Log-transformed net worth distributions by model",
+        height=800,
+        width=1000,
+        showlegend=True,
+        legend=dict(
+            x=0.5,
+            y=-0.2,
+            xanchor="center",
+            yanchor="top",
+            orientation="h",
+        ),
+        barmode="overlay",
+    )
+    
+    # Update x-axes with custom tick labels
+    tick_values = [-6, -4, -2, 0, 2, 4, 6, 8]
+    tick_labels = [
+        "$" + format(10**x if x >= 0 else -(10**abs(x)), ",.0f")
+        for x in tick_values
+    ]
+    
+    for i in range(1, 5):
+        fig.update_xaxes(
+            tickvals=tick_values, 
+            ticktext=tick_labels,
+            title_text="Net Worth (log scale)" if i > 2 else "",
+            row=(i-1)//2 + 1, 
+            col=(i-1)%2 + 1
+        )
+        fig.update_yaxes(
+            title_text="Frequency" if i % 2 == 1 else "",
+            row=(i-1)//2 + 1, 
+            col=(i-1)%2 + 1
+        )
+    
+    return fig
+
+
+# Create dictionary of model results
+model_results = {
+    "QRF imputations": qrf_cps_imputed_weighted,
+    "OLS imputations": ols_cps_imputed_weighted,
+    "QuantReg imputations": quantreg_cps_imputed_weighted,
+    "Matching imputations": matching_cps_imputed_weighted,
+}
+
+# Create and show the combined plot
+combined_fig = plot_all_models_net_worth_log_distributions(scf_data_weighted, model_results)
+combined_fig.show()
+```
+![png](./imputations_model_comparison.png)
+
+Comparing the wealth distributions that result from imputing from the SCF on to the CPS with four different models, we can visually recognize the different strengths and limitations of each of them. The implications of using one model instead of another for imputation will be further explored by evaluating the impact wealth imputed data has on microsimulation results.
+
+## Wealth distributions by disposable income deciles
+
+Lastly, to confidently say that our wealth imputations are coherent with other household characteristics, we can compare the average net worth values per disposable income decile for each of the four methods used. 
+
+```python
+income_col  = "household_net_income"
+wealth_col  = "networth"          # e.g. "net_wealth"
+
+decile_means = []
+
+for model, df in model_results.items():
+    tmp = df.copy()
+
+    # Create 1–10 decile indicator (unweighted)
+    tmp["income_decile"] = (
+        pd.qcut(tmp[income_col], 10, labels=False) + 1
+    )
+
+    # Mean wealth in each decile
+    out = (
+        tmp.groupby("income_decile")[wealth_col]
+           .mean()
+           .reset_index(name="mean_wealth")
+    )
+    out["Model"] = model
+    decile_means.append(out)
+
+avg_df = pd.concat(decile_means, ignore_index=True)
+avg_df["income_decile"] = avg_df["income_decile"].astype(int)
+
+fig = px.bar(
+    avg_df,
+    x="income_decile",
+    y="mean_wealth",
+    color="Model",
+    barmode="group",
+    labels={
+        "income_decile": "Net-income decile (1 = lowest, 10 = highest)",
+        "mean_wealth":   "Average household net worth ($)",
+    },
+    title=(
+        "Average household net worth by net-income decile<br>"
+        "<sup>Comparison of imputation models</sup>"
+    ),
+)
+
+fig.update_layout(
+    xaxis=dict(dtick=1, tick0=1),
+    paper_bgcolor="#F0F0F0",
+    plot_bgcolor="#F0F0F0",
+    yaxis_tickformat="$,.0f",
+    hovermode="x unified",
+)
+
+fig.update_xaxes(showgrid=False)
+fig.update_yaxes(showgrid=False)
+
+fig.show()
+```
+
+![png](./by_income_decile_comparisons.png)
+
+QRF clearly presents the most consistent and plausable realtionship to disposable income, with a gradually increasing average as the deciles increase. This plot also supports the behavior observed above showing the extreme negative and positive predictions that OLS and QuantReg produce at the left and right tails, respectively, and Matching's underprediction at every decile. 

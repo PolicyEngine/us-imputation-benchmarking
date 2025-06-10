@@ -451,99 +451,71 @@
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error in _load: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span>
-</pre></div>
-</div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">predictors</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;hhsex&quot;</span><span class="p">,</span>  <span class="c1"># sex of head of household</span>
-    <span class="s2">&quot;age&quot;</span><span class="p">,</span>  <span class="c1"># age of respondent (hoh)</span>
-    <span class="s2">&quot;married&quot;</span><span class="p">,</span>  <span class="c1"># marital status of respondent (hoh)</span>
-    <span class="s2">&quot;kids&quot;</span><span class="p">,</span>  <span class="c1"># number of children in household</span>
-    <span class="s2">&quot;race&quot;</span><span class="p">,</span>  <span class="c1"># race of respondent (hoh)</span>
-    <span class="s2">&quot;income&quot;</span><span class="p">,</span>  <span class="c1"># total annual income of household</span>
-    <span class="s2">&quot;wageinc&quot;</span><span class="p">,</span>  <span class="c1"># income from wages and salaries</span>
-    <span class="s2">&quot;bussefarminc&quot;</span><span class="p">,</span>  <span class="c1"># income from business, self-employment or farm</span>
-    <span class="s2">&quot;intdivinc&quot;</span><span class="p">,</span>  <span class="c1"># income from interest and dividends</span>
-    <span class="s2">&quot;ssretinc&quot;</span><span class="p">,</span>  <span class="c1"># income from social security and retirement accounts</span>
+
+<span class="n">scf</span> <span class="o">=</span> <span class="n">load_scf</span><span class="p">(</span><span class="mi">2022</span><span class="p">)</span>
+
+<span class="c1"># Create mapping from desired variable names to SCF column names</span>
+<span class="n">scf_variable_mapping</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;hhsex&quot;</span><span class="p">:</span> <span class="s2">&quot;is_female&quot;</span><span class="p">,</span>  <span class="c1"># sex (is female yes/no) (hhsex)</span>
+    <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="s2">&quot;age&quot;</span><span class="p">,</span>  <span class="c1"># age of respondent (age)</span>
+    <span class="s2">&quot;race&quot;</span><span class="p">:</span> <span class="s2">&quot;race&quot;</span><span class="p">,</span> <span class="c1"># race of respondent (race)</span>
+    <span class="s2">&quot;kids&quot;</span><span class="p">:</span> <span class="s2">&quot;own_children_in_household&quot;</span><span class="p">,</span>  <span class="c1"># number of children in household (kids)</span>
+    <span class="s2">&quot;wageinc&quot;</span><span class="p">:</span> <span class="s2">&quot;employment_income&quot;</span><span class="p">,</span> <span class="c1"># income from wages and salaries (wageinc)</span>
+    <span class="s2">&quot;bussefarminc&quot;</span><span class="p">:</span> <span class="s2">&quot;farm_self_employment_income&quot;</span><span class="p">,</span>  <span class="c1"># income from business, self-employment or farm (bussefarminc)</span>
+    <span class="s2">&quot;intdivinc&quot;</span><span class="p">:</span> <span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">,</span>  <span class="c1"># income from interest and dividends (intdivinc)</span>
+    <span class="s2">&quot;ssretinc&quot;</span><span class="p">:</span> <span class="s2">&quot;pension_income&quot;</span><span class="p">,</span>  <span class="c1"># income from social security and retirement accounts (ssretinc)</span>
+<span class="p">}</span>
+
+<span class="n">original_columns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">scf_variable_mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">,</span> <span class="s2">&quot;wgt&quot;</span><span class="p">]</span>
+<span class="n">scf_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">col</span><span class="p">:</span> <span class="n">scf</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">original_columns</span><span class="p">})</span>
+<span class="n">scf_data</span> <span class="o">=</span> <span class="n">scf_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">scf_variable_mapping</span><span class="p">)</span>
+
+<span class="c1"># Convert hhsex to is_female (hhsex: 1=male, 2=female -&gt; is_female: 0=male, 1=female)</span>
+<span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;is_female&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;is_female&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+<span class="n">predictors</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;is_female&quot;</span><span class="p">,</span> <span class="c1"># sex of head of household</span>
+    <span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="c1"># age of head of household</span>
+    <span class="s2">&quot;own_children_in_household&quot;</span><span class="p">,</span> <span class="c1"># number of children in household</span>
+    <span class="s2">&quot;race&quot;</span><span class="p">,</span>  <span class="c1"># race of the head of household</span>
+    <span class="s2">&quot;employment_income&quot;</span><span class="p">,</span> <span class="c1"># income from wages and salaries</span>
+    <span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">,</span> <span class="c1"># income from interest and dividends</span>
+    <span class="s2">&quot;pension_income&quot;</span><span class="p">,</span> <span class="c1"># income from social security and retirement accounts</span>
 <span class="p">]</span>
 
 <span class="n">imputed_variables</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span>
 
-<span class="n">scf_data</span> <span class="o">=</span> <span class="n">load_scf</span><span class="p">(</span><span class="mi">2022</span><span class="p">)</span>
-<span class="n">scf_data</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="n">predictors</span> <span class="o">+</span> <span class="n">imputed_variables</span><span class="p">]</span>
-<span class="n">scf_marital_mapping</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="mi">1</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Married - civilian spouse present -&gt; Married</span>
-    <span class="mi">2</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>  <span class="c1"># Living with partner -&gt; Never Married</span>
-    <span class="mi">3</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># Separated -&gt; Separated</span>
-    <span class="mi">4</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>  <span class="c1"># Divorced -&gt; Divorced</span>
-    <span class="mi">5</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>  <span class="c1"># Widowed -&gt; Widowed</span>
-    <span class="mi">6</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>  <span class="c1"># Never Married -&gt; Never Married</span>
-<span class="p">}</span>
+<span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;wgt&quot;</span><span class="p">]</span>
 
-<span class="c1"># Apply the mapping to recode the marital status values</span>
-<span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;married&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">scf_marital_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">)(</span>
-    <span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;married&quot;</span><span class="p">]</span>
-<span class="p">)</span>
+<span class="n">scf_data</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="n">predictors</span> <span class="o">+</span> <span class="n">imputed_variables</span> <span class="o">+</span> <span class="n">weights</span><span class="p">]</span>
 
-<span class="n">file_path</span> <span class="o">=</span> <span class="s2">&quot;/Users/movil1/Desktop/PYTHONJOBS/PolicyEngine/microimpute/docs/examples/data/Census CPS 2022.h5&quot;</span>
+<span class="n">weights_col</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;wgt&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<span class="n">weights_normalized</span> <span class="o">=</span> <span class="n">weights_col</span> <span class="o">/</span> <span class="n">weights_col</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">scf_data_weighted</span> <span class="o">=</span> <span class="n">scf_data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">scf_data</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ssl</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 
-<span class="n">household_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_hdf</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s2">&quot;household&quot;</span><span class="p">)</span>
-<span class="n">household_df</span> <span class="o">=</span> <span class="n">household_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;H_SEQ&quot;</span><span class="p">)</span>
-<span class="n">person_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_hdf</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s2">&quot;person&quot;</span><span class="p">)</span>
-<span class="n">person_df</span> <span class="o">=</span> <span class="n">person_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;PH_SEQ&quot;</span><span class="p">)</span>
-<span class="n">cps_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">household_df</span><span class="o">.</span><span class="n">index</span>
-<span class="n">person_df</span><span class="p">[</span><span class="s2">&quot;is_household_head&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">person_df</span><span class="o">.</span><span class="n">P_SEQ</span> <span class="o">==</span> <span class="mi">1</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;hhsex&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">person_df</span><span class="p">[</span><span class="n">person_df</span><span class="o">.</span><span class="n">is_household_head</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">household_df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">A_SEX</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;age&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">person_df</span><span class="p">[</span><span class="n">person_df</span><span class="o">.</span><span class="n">is_household_head</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">household_df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">A_AGE</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;married&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">person_df</span><span class="p">[</span><span class="n">person_df</span><span class="o">.</span><span class="n">is_household_head</span><span class="p">]</span>
-    <span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">household_df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
-    <span class="o">.</span><span class="n">A_MARITL</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">person_df</span><span class="p">[</span><span class="s2">&quot;is_child&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">person_df</span><span class="o">.</span><span class="n">A_AGE</span> <span class="o">&lt;</span> <span class="mi">18</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;kids&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">person_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">person_df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">is_child</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">household_df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
-    <span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;race&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">person_df</span><span class="p">[</span><span class="n">person_df</span><span class="o">.</span><span class="n">is_household_head</span><span class="p">]</span>
-    <span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">household_df</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
-    <span class="o">.</span><span class="n">PRDTRACE</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HTOTVAL</span><span class="o">.</span><span class="n">values</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;wageinc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HWSVAL</span><span class="o">.</span><span class="n">values</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;bussefarminc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">household_df</span><span class="o">.</span><span class="n">HSEVAL</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HFRVAL</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;intdivinc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">household_df</span><span class="o">.</span><span class="n">HINTVAL</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HDIVVAL</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;ssretinc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">household_df</span><span class="o">.</span><span class="n">HSSVAL</span><span class="o">.</span><span class="n">values</span>
-    <span class="o">+</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HSSIVAL</span><span class="o">.</span><span class="n">values</span>
-    <span class="o">+</span> <span class="n">household_df</span><span class="o">.</span><span class="n">HPENVAL</span><span class="o">.</span><span class="n">values</span>
-<span class="p">)</span>
+<span class="c1"># Disable SSL verification warnings (only use in development environments)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib3</span>
+<span class="n">urllib3</span><span class="o">.</span><span class="n">disable_warnings</span><span class="p">(</span><span class="n">urllib3</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">InsecureRequestWarning</span><span class="p">)</span>
 
-<span class="n">cps_marital_mapping</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="mi">1</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Married - civilian spouse present -&gt; Married</span>
-    <span class="mi">2</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Married - AF spouse present -&gt; Married</span>
-    <span class="mi">3</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Married - spouse absent -&gt; Married</span>
-    <span class="mi">4</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>  <span class="c1"># Widowed -&gt; Widowed</span>
-    <span class="mi">5</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>  <span class="c1"># Divorced -&gt; Divorced</span>
-    <span class="mi">6</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># Separated -&gt; Separated</span>
-    <span class="mi">7</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>  <span class="c1"># Never married -&gt; Never married</span>
-<span class="p">}</span>
+<span class="c1"># Create unverified context for SSL connections</span>
+<span class="n">ssl</span><span class="o">.</span><span class="n">_create_default_https_context</span> <span class="o">=</span> <span class="n">ssl</span><span class="o">.</span><span class="n">_create_unverified_context</span>
 
-<span class="c1"># Apply the mapping to recode the marital status values</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;married&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">cps_marital_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">)(</span>
-    <span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;married&quot;</span><span class="p">]</span>
-<span class="p">)</span>
+<span class="c1"># Monkey patch the requests library to use the unverified context</span>
+<span class="n">old_get</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span>
+<span class="n">requests</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">old_get</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="s1">&#39;verify&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">policyengine_us_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CPS_2024</span>
+<span class="n">cps_data</span> <span class="o">=</span> <span class="n">CPS_2024</span><span class="p">()</span>
+<span class="c1">#cps_data.generate()</span>
+<span class="n">cps</span> <span class="o">=</span> <span class="n">cps_data</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">()</span>
 
 <span class="n">cps_race_mapping</span> <span class="o">=</span> <span class="p">{</span>
     <span class="mi">1</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># White only -&gt; WHITE</span>
@@ -575,7 +547,60 @@
 <span class="p">}</span>
 
 <span class="c1"># Apply the mapping to recode the race values</span>
-<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;race&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">cps_race_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">)(</span><span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;race&quot;</span><span class="p">])</span>
+<span class="n">cps</span><span class="p">[</span><span class="s2">&quot;race&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vectorize</span><span class="p">(</span><span class="n">cps_race_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">)(</span><span class="n">cps</span><span class="p">[</span><span class="s2">&quot;cps_race&quot;</span><span class="p">])</span>
+<span class="n">cps</span><span class="p">[</span><span class="s2">&quot;farm_self_employment_income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;self_employment_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;farm_income&quot;</span><span class="p">]</span>
+<span class="n">cps</span><span class="p">[</span><span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;taxable_interest_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;tax_exempt_interest_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;qualified_dividend_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;non_qualified_dividend_income&quot;</span><span class="p">]</span>
+<span class="n">cps</span><span class="p">[</span><span class="s2">&quot;pension_income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;tax_exempt_private_pension_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;taxable_private_pension_income&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;social_security_retirement&quot;</span><span class="p">]</span>
+
+<span class="n">mask_head</span> <span class="o">=</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;is_household_head&quot;</span><span class="p">]</span>
+<span class="n">income_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+    <span class="s2">&quot;household_id&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;person_household_id&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;employment_income&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;employment_income&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;farm_self_employment_income&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;farm_self_employment_income&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;pension_income&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;pension_income&quot;</span><span class="p">],</span>
+<span class="p">})</span>
+<span class="n">household_sums</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">income_df</span>
+      <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;household_id&quot;</span><span class="p">)</span>
+      <span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+      <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="p">)</span>
+<span class="n">heads</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+    <span class="s2">&quot;household_id&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;person_household_id&quot;</span><span class="p">][</span><span class="n">mask_head</span><span class="p">],</span>
+    <span class="s2">&quot;is_female&quot;</span><span class="p">:</span>    <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;is_female&quot;</span><span class="p">][</span><span class="n">mask_head</span><span class="p">],</span>
+    <span class="s2">&quot;age&quot;</span><span class="p">:</span>          <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;age&quot;</span><span class="p">][</span><span class="n">mask_head</span><span class="p">],</span>
+    <span class="s2">&quot;race&quot;</span><span class="p">:</span>         <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;race&quot;</span><span class="p">][</span><span class="n">mask_head</span><span class="p">],</span>
+    <span class="s2">&quot;own_children_in_household&quot;</span><span class="p">:</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;own_children_in_household&quot;</span><span class="p">][</span><span class="n">mask_head</span><span class="p">],</span>
+<span class="p">})</span>
+<span class="n">hh_level</span> <span class="o">=</span> <span class="n">heads</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">household_sums</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;household_id&quot;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">series</span> <span class="ow">in</span> <span class="n">cps</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">series</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">hh_level</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">hh_level</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">hh_level</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">values</span>
+
+
+<span class="n">cols</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">[</span><span class="s2">&quot;household_id&quot;</span><span class="p">]</span>
+    <span class="o">+</span> <span class="p">[</span>
+        <span class="s2">&quot;farm_self_employment_income&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;interest_dividend_income&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;pension_income&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;employment_income&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;own_children_in_household&quot;</span><span class="p">,</span> <span class="s2">&quot;is_female&quot;</span><span class="p">,</span> <span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="s2">&quot;race&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="n">cps_data</span> <span class="o">=</span> <span class="n">hh_level</span><span class="p">[</span><span class="n">cols</span><span class="p">]</span>
+<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span>
+
+<span class="n">household_weights</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">policyengine_us</span><span class="w"> </span><span class="kn">import</span> <span class="n">Microsimulation</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">Microsimulation</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="n">CPS_2022</span><span class="p">)</span>
+<span class="n">net_disposable_income</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="s2">&quot;household_net_income&quot;</span><span class="p">)</span>
+
+<span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_net_income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">net_disposable_income</span>
 </pre></div>
 </div>
 </section>
@@ -592,11 +617,10 @@
     <span class="n">receiver_data</span><span class="o">=</span><span class="n">cps_data</span><span class="p">,</span>
     <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
     <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+    <span class="n">weight_col</span><span class="o">=</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
     <span class="n">tune_hyperparameters</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># enable automated hyperparameter tuning</span>
-<span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span>
-    <span class="sa">f</span><span class="s2">&quot;Shape of receiver data before imputation: </span><span class="si">{</span><span class="n">cps_data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">Shape of receiver data after imputation: </span><span class="si">{</span><span class="n">imputed_data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">normalize_data</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># normalization</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -609,277 +633,525 @@
 
 <span class="n">comparison_viz</span> <span class="o">=</span> <span class="n">method_comparison_results</span><span class="p">(</span>
     <span class="n">data</span><span class="o">=</span><span class="n">method_results_df</span><span class="p">,</span>
-    <span class="n">metric_name</span><span class="o">=</span><span class="s2">&quot;Test Quantile Loss&quot;</span><span class="p">,</span>
+    <span class="n">metric_name</span><span class="o">=</span><span class="s2">&quot;quantile loss&quot;</span><span class="p">,</span>
     <span class="n">data_format</span><span class="o">=</span><span class="s2">&quot;wide&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">fig</span> <span class="o">=</span> <span class="n">comparison_viz</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Autoimpute Method Comparison&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Autoimpute method comparison&quot;</span><span class="p">,</span>
     <span class="n">show_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p><img alt="png" src="../../_images/scf_to_cps_loss.png" /></p>
+<p><img alt="png" src="../../_images/autoimpute_model_comparison.png" /></p>
 <p>## Evaluating wealth imputations</p>
 <p>To assess the imputation results, a comparison the distribution of wealth in the original SCF data with the imputed values in the CPS allow examining how well the imputation preserves important characteristics of the wealth distribution, such as its shape, central tendency, and dispersion.</p>
 <p>Wealth distributions are typically highly skewed, with a long right tail representing a small number of households with very high net worth. A successful imputation should preserve this characteristic skewness while maintaining realistic values across the entire distribution. Examining both the raw distributions and log-transformed versions of wealth values can better capture important information for evaluation.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">plot_networth_distributions</span><span class="p">(</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">plot_log_transformed_net_worth_distributions</span><span class="p">(</span>
     <span class="n">scf_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">imputed_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the distribution of net worth in SCF and imputed CPS data.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the log-transformed distribution of net worth in SCF and imputed CPS data.&quot;&quot;&quot;</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        scf_data: DataFrame containing SCF data.</span>
-<span class="sd">        imputed_data: DataFrame containing imputed CPS data.</span>
+    <span class="n">palette</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">qualitative</span><span class="o">.</span><span class="n">Plotly</span>
+    <span class="n">scf_color</span> <span class="o">=</span> <span class="s1">&#39;#1f77b4&#39;</span>   <span class="c1"># palette[0]</span>
+    <span class="n">cps_color</span> <span class="o">=</span> <span class="s1">&#39;#9467bd&#39;</span>   <span class="c1"># palette[1]</span>
+    <span class="n">scf_median_color</span> <span class="o">=</span> <span class="n">scf_color</span>
+    <span class="n">cps_median_color</span> <span class="o">=</span> <span class="n">cps_color</span>
+    <span class="n">scf_mean_color</span> <span class="o">=</span> <span class="n">scf_color</span>
+    <span class="n">cps_mean_color</span> <span class="o">=</span> <span class="n">cps_color</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Plotly figure object.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Plotting net worth distributions&quot;</span><span class="p">)</span>
-
-    <span class="c1"># 0. Check for missing values</span>
-    <span class="k">if</span> <span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;SCF data contains missing values in &#39;networth&#39; column&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isnull</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Imputed data contains missing values in &#39;networth&#39; column&quot;</span><span class="p">)</span>    
-    
-    <span class="c1"># 1. Compute medians &amp; means</span>
-    <span class="n">scf_median</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
-    <span class="n">scf_mean</span>   <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-    <span class="n">cps_median</span> <span class="o">=</span> <span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
-    <span class="n">cps_mean</span>   <span class="o">=</span> <span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-
-    <span class="c1"># 2. Compute upper_limit &amp; true max counts</span>
-    <span class="n">upper_limit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">],</span> <span class="mf">99.5</span><span class="p">)</span>
-    <span class="n">scf_counts</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">upper_limit</span><span class="p">))</span>
-    <span class="n">cps_counts</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">upper_limit</span><span class="p">))</span>
-    <span class="n">max_scf</span> <span class="o">=</span> <span class="n">scf_counts</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-    <span class="n">max_cps</span> <span class="o">=</span> <span class="n">cps_counts</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-
-    <span class="c1"># 3. Build subplots</span>
-    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span>
-        <span class="n">rows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-        <span class="n">subplot_titles</span><span class="o">=</span><span class="p">[</span>
-            <span class="s2">&quot;Distribution of Networth in SCF Data (Original)&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Distribution of Imputed Networth in CPS Data&quot;</span>
-        <span class="p">],</span>
-        <span class="n">vertical_spacing</span><span class="o">=</span><span class="mf">0.15</span>
-    <span class="p">)</span>
-
-    <span class="c1"># 4. Add histograms</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">],</span>
-            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
-            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-            <span class="n">marker_color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span>
-            <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">],</span>
-            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
-            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-            <span class="n">marker_color</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">,</span>
-            <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-
-    <span class="c1"># 5. Add full-height median/mean lines for SCF</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_median</span><span class="p">,</span> <span class="n">scf_median</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span>   <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dash&#39;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Median: $</span><span class="si">{</span><span class="n">scf_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">legendgroup</span><span class="o">=</span><span class="s1">&#39;scf&#39;</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_mean</span><span class="p">,</span> <span class="n">scf_mean</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dot&#39;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Mean: $</span><span class="si">{</span><span class="n">scf_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">legendgroup</span><span class="o">=</span><span class="s1">&#39;scf&#39;</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-
-    <span class="c1"># 6. Add full-height median/mean lines for CPS</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_median</span><span class="p">,</span> <span class="n">cps_median</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">38000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">,</span>   <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dash&#39;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Median: $</span><span class="si">{</span><span class="n">cps_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">legendgroup</span><span class="o">=</span><span class="s1">&#39;cps&#39;</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_mean</span><span class="p">,</span> <span class="n">cps_mean</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">38000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;lines&#39;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s1">&#39;dot&#39;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Mean: $</span><span class="si">{</span><span class="n">cps_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">legendgroup</span><span class="o">=</span><span class="s1">&#39;cps&#39;</span>
-        <span class="p">),</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span>
-    <span class="p">)</span>
-
-    <span class="c1"># 7. Final layout tweaks</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
-        <span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Comparison of Original and Imputed Networth Distributions&quot;</span><span class="p">,</span>
-        <span class="n">height</span><span class="o">=</span><span class="n">PLOT_CONFIG</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">],</span>
-        <span class="n">width</span> <span class="o">=</span><span class="n">PLOT_CONFIG</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">],</span>
-        <span class="n">legend_tracegroupgap</span><span class="o">=</span><span class="mi">180</span>
-    <span class="p">)</span>
-
-    <span class="c1"># 8. Zoom x-axis to drop extreme outliers</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">upper_limit</span><span class="p">],</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Networth&quot;</span><span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">upper_limit</span><span class="p">],</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Networth&quot;</span><span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">fig</span>
-</pre></div>
-</div>
-<p><img alt="png" src="../../_images/scf_to_cps_networth_distribution.png" /></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">plot_log_transformed_distributions</span><span class="p">(</span>
-    <span class="n">scf_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">imputed_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the log-transformed distribution of net worth in SCF and imputed CPS data.</span>
-<span class="sd">    </span>
-<span class="sd">    Args:</span>
-<span class="sd">        scf_data: DataFrame containing SCF data.</span>
-<span class="sd">        imputed_data: DataFrame containing imputed CPS data.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Plotly figure object.</span>
-<span class="sd">    &quot;&quot;&quot;</span> 
-    <span class="c1"># Create a log transformation function that handles negative values</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">safe_log</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-        <span class="c1"># For negative values, take log of absolute value and negate</span>
-        <span class="c1"># For zero, replace with a small positive value</span>
         <span class="n">sign</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">log_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mf">1e-10</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">log_x</span>
 
-    <span class="c1"># Create log-transformed data</span>
-    <span class="n">scf_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">])</span>
-    <span class="n">cps_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">imputed_data</span><span class="p">[</span><span class="s1">&#39;networth&#39;</span><span class="p">])</span>
+    <span class="n">scf_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+    <span class="n">cps_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">imputed_data</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
 
-    <span class="c1"># Calculate statistics for log-transformed data</span>
-    <span class="n">scf_log_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">scf_log</span><span class="p">)</span>
-    <span class="n">cps_log_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">cps_log</span><span class="p">)</span>
-    <span class="n">scf_log_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scf_log</span><span class="p">)</span>
-    <span class="n">cps_log_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">cps_log</span><span class="p">)</span>
+    <span class="n">scf_log_median</span><span class="p">,</span> <span class="n">cps_log_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">scf_log</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">cps_log</span><span class="p">)</span>
+    <span class="n">scf_log_mean</span><span class="p">,</span> <span class="n">cps_log_mean</span>     <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scf_log</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">cps_log</span><span class="p">)</span>
 
-    <span class="c1"># Create a single plot with both distributions</span>
     <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
 
-    <span class="c1"># Add histograms for both datasets</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="n">scf_log</span><span class="p">,</span>
-            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
-            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SCF Log Networth&quot;</span><span class="p">,</span>
-            <span class="n">marker_color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
+    <span class="c1"># histograms</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="n">scf_log</span><span class="p">,</span>
+        <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+        <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;SCF (weighted) log net worth&quot;</span><span class="p">,</span>
+        <span class="n">marker_color</span><span class="o">=</span><span class="n">scf_color</span><span class="p">,</span>
+    <span class="p">))</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="n">cps_log</span><span class="p">,</span>
+        <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+        <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;CPS imputed log net worth&quot;</span><span class="p">,</span>
+        <span class="n">marker_color</span><span class="o">=</span><span class="n">cps_color</span><span class="p">,</span>
+    <span class="p">))</span>
 
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="n">cps_log</span><span class="p">,</span>
-            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
-            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;CPS Imputed Log Networth&quot;</span><span class="p">,</span>
-            <span class="n">marker_color</span><span class="o">=</span><span class="s1">&#39;purple&#39;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
+    <span class="c1"># medians (dashed)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_log_median</span><span class="p">,</span> <span class="n">scf_log_median</span><span class="p">],</span>
+        <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+        <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">scf_median_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF median: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">scf_log_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_log_median</span><span class="p">,</span> <span class="n">cps_log_median</span><span class="p">],</span>
+        <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+        <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">cps_median_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;CPS median: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">cps_log_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
 
-    <span class="c1"># Add vertical lines for medians</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_log_median</span><span class="p">,</span> <span class="n">scf_log_median</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF Median: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">scf_log_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
+    <span class="c1"># means (dotted)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_log_mean</span><span class="p">,</span> <span class="n">scf_log_mean</span><span class="p">],</span>
+        <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+        <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">scf_mean_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF mean: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">scf_log_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+        <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_log_mean</span><span class="p">,</span> <span class="n">cps_log_mean</span><span class="p">],</span>
+        <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+        <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">cps_mean_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">),</span>
+        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;CPS mean: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">cps_log_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="p">))</span>
 
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_log_median</span><span class="p">,</span> <span class="n">cps_log_median</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;purple&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;CPS Median: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">cps_log_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Add vertical lines for means</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_log_mean</span><span class="p">,</span> <span class="n">scf_log_mean</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF Mean: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">scf_log_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
-        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">cps_log_mean</span><span class="p">,</span> <span class="n">cps_log_mean</span><span class="p">],</span>
-            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">],</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
-            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;purple&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">),</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;CPS Mean: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">cps_log_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Update layout with improved titles and labels</span>
+    <span class="c1"># layout</span>
     <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
-        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Log-Transformed Networth Distribution Comparison&quot;</span><span class="p">,</span>
-        <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">&quot;Log10 of Networth&quot;</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span> <span class="k">if</span> <span class="n">title</span> <span class="k">else</span> <span class="s2">&quot;Log-transformed net worth distribution comparison&quot;</span><span class="p">,</span>
+        <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">&quot;Net worth&quot;</span><span class="p">,</span>
         <span class="n">yaxis_title</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span><span class="p">,</span>
         <span class="n">height</span><span class="o">=</span><span class="n">PLOT_CONFIG</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">],</span>
-        <span class="n">width</span><span class="o">=</span><span class="n">PLOT_CONFIG</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">],</span> 
-        <span class="n">barmode</span><span class="o">=</span><span class="s1">&#39;overlay&#39;</span><span class="p">,</span>
+        <span class="n">width</span><span class="o">=</span><span class="n">PLOT_CONFIG</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">],</span>
+        <span class="n">barmode</span><span class="o">=</span><span class="s2">&quot;overlay&quot;</span><span class="p">,</span>
         <span class="n">bargap</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
         <span class="n">legend</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
-            <span class="n">x</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
-            <span class="n">y</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span>
-            <span class="n">bgcolor</span><span class="o">=</span><span class="s2">&quot;rgba(255, 255, 255, 0.8)&quot;</span><span class="p">,</span>
-            <span class="n">bordercolor</span><span class="o">=</span><span class="s2">&quot;rgba(0, 0, 0, 0.3)&quot;</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span>
+            <span class="n">bgcolor</span><span class="o">=</span><span class="s2">&quot;rgba(255,255,255,0.8)&quot;</span><span class="p">,</span>
+            <span class="n">bordercolor</span><span class="o">=</span><span class="s2">&quot;rgba(0,0,0,0.3)&quot;</span><span class="p">,</span>
             <span class="n">borderwidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="n">orientation</span><span class="o">=</span><span class="s2">&quot;v&quot;</span><span class="p">,</span>
             <span class="n">xanchor</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span>
-            <span class="n">yanchor</span><span class="o">=</span><span class="s2">&quot;top&quot;</span>
-        <span class="p">)</span>
+            <span class="n">yanchor</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
     <span class="p">)</span>
 
-    <span class="c1"># Add tick labels showing the actual dollar values</span>
+    <span class="c1"># custom ticks</span>
     <span class="n">tick_values</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">6</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">8</span><span class="p">]</span>
-    <span class="n">tick_labels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;$&#39;</span> <span class="o">+</span> <span class="nb">format</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="mi">10</span><span class="o">**</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="s1">&#39;,.0f&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tick_values</span><span class="p">]</span>
-    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span>
-        <span class="n">tickvals</span><span class="o">=</span><span class="n">tick_values</span><span class="p">,</span>
-        <span class="n">ticktext</span><span class="o">=</span><span class="n">tick_labels</span>
-    <span class="p">)</span>
+    <span class="n">tick_labels</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="nb">format</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="s2">&quot;,.0f&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tick_values</span>
+    <span class="p">]</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">tickvals</span><span class="o">=</span><span class="n">tick_values</span><span class="p">,</span> <span class="n">ticktext</span><span class="o">=</span><span class="n">tick_labels</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">fig</span>
+
+<span class="n">weights_col</span> <span class="o">=</span> <span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<span class="n">weights_normalized</span> <span class="o">=</span> <span class="n">weights_col</span> <span class="o">/</span> <span class="n">weights_col</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">imputed_data_weighted</span> <span class="o">=</span> <span class="n">imputed_data</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">imputed_data</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="n">plot_log_transformed_net_worth_distributions</span><span class="p">(</span><span class="n">scf_data_weighted</span><span class="p">,</span> <span class="n">imputed_data_weighted</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
-<p><img alt="png" src="../../_images/scf_to_cps_networth_log_transform.png" /></p>
+<p><img alt="png" src="../../_images/autoimpute_best_model_imputations.png" /></p>
 <p>The logarithmic transformation provides a clearer view of the wealth distribution across its entire range. By logarithmically scaling the data, the extreme values are compressed while expanding the visibility of differences in the lower and middle portions of the distribution.</p>
-<p>This transformation is particularly valuable for wealth data, where values can span many orders of magnitude. The plot above, shows how closely the imputed CPS wealth distribution matches the original SCF distribution in terms of shape and central tendency. The vertical lines marking the mean and median values help gauge how these statistical properties have been preserved through the imputation process.</p>
+<p>This transformation is particularly valuable for wealth data, where values can span many orders of magnitude. The plot above, shows how closely the imputed CPS wealth distribution matches the original SCF distribution in terms of shape and central tendency after the imputation performed by the QRF model. The vertical lines marking the mean and median values help gauge how these statistical properties have been preserved through the imputation process.</p>
+</section>
+<section id="comparing-with-other-methods">
+<h2>Comparing with other methods<a class="headerlink" href="#comparing-with-other-methods" title="Permalink to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">donor_data</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="n">predictors</span> <span class="o">+</span> <span class="n">imputed_variables</span> <span class="o">+</span> <span class="n">weights</span><span class="p">]</span>
+<span class="n">receiver_data</span> <span class="o">=</span> <span class="n">cps_data</span><span class="p">[</span><span class="n">predictors</span> <span class="o">+</span> <span class="n">household_weights</span><span class="p">]</span>
+
+<span class="n">donor_data</span><span class="p">,</span> <span class="n">dummy_info</span><span class="p">,</span> <span class="n">normalizing_params</span> <span class="o">=</span> <span class="n">preprocess_data</span><span class="p">(</span><span class="n">donor_data</span><span class="p">[</span><span class="n">predictors</span> <span class="o">+</span> <span class="n">imputed_variables</span><span class="p">],</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">full_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">donor_data</span><span class="p">[</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">scf_data</span><span class="p">[</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+<span class="n">receiver_data</span><span class="p">,</span> <span class="n">dummy_info_cps</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">preprocess_data</span><span class="p">(</span><span class="n">receiver_data</span><span class="p">[</span><span class="n">predictors</span><span class="p">],</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">full_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">receiver_data</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span>
+<span class="n">receiver_data</span><span class="p">[</span><span class="s2">&quot;household_net_income&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cps_data</span><span class="p">[</span><span class="s2">&quot;household_net_income&quot;</span><span class="p">]</span>
+
+<span class="n">mean</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">p</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">normalizing_params</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="p">)</span>
+<span class="n">std</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">p</span><span class="p">[</span><span class="s2">&quot;std&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">normalizing_params</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">dummy_cols</span> <span class="ow">in</span> <span class="n">dummy_info</span><span class="p">[</span><span class="s2">&quot;column_mapping&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">predictors</span><span class="p">:</span>
+        <span class="n">predictors</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+        <span class="n">predictors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dummy_cols</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">imputed_variables</span><span class="p">:</span>
+        <span class="n">imputed_variables</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+        <span class="n">imputed_variables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">dummy_cols</span><span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">microimpute.models</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">impute_scf_to_cps</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">Imputer</span><span class="p">],</span> 
+                      <span class="n">donor_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                      <span class="n">receiver_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                      <span class="n">cps_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                      <span class="n">predictors</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                      <span class="n">imputed_variables</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                      <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Impute SCF data into CPS data using the specified model.&quot;&quot;&quot;</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="p">()</span>
+    <span class="n">fitted_model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
+        <span class="n">X_train</span><span class="o">=</span><span class="n">donor_data</span><span class="p">,</span>
+        <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
+        <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+        <span class="n">weight_col</span><span class="o">=</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">imputations</span> <span class="o">=</span> <span class="n">fitted_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="o">=</span><span class="n">receiver_data</span><span class="p">)</span>
+
+    <span class="n">cps_imputed</span> <span class="o">=</span> <span class="n">cps_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">imputations</span><span class="p">[</span><span class="mf">0.5</span><span class="p">][</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">cps_imputed</span>
+
+<span class="n">quantreg_cps_imputed</span> <span class="o">=</span> <span class="n">impute_scf_to_cps</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">QuantReg</span><span class="p">,</span>
+    <span class="n">donor_data</span><span class="o">=</span><span class="n">donor_data</span><span class="p">,</span>
+    <span class="n">receiver_data</span><span class="o">=</span><span class="n">receiver_data</span><span class="p">,</span>
+    <span class="n">cps_data</span><span class="o">=</span><span class="n">cps_data</span><span class="p">,</span>
+    <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
+    <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">quantreg_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantreg_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">std</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+<span class="n">quantreg_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantreg_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+
+<span class="n">weights_col</span> <span class="o">=</span> <span class="n">receiver_data</span><span class="p">[</span><span class="s2">&quot;household_weight&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<span class="n">weights_normalized</span> <span class="o">=</span> <span class="n">weights_col</span> <span class="o">/</span> <span class="n">weights_col</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">quantreg_cps_imputed_weighted</span> <span class="o">=</span> <span class="n">quantreg_cps_imputed</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">quantreg_cps_imputed</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="n">ols_cps_imputed</span> <span class="o">=</span> <span class="n">impute_scf_to_cps</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">OLS</span><span class="p">,</span>
+    <span class="n">donor_data</span><span class="o">=</span><span class="n">donor_data</span><span class="p">,</span>
+    <span class="n">receiver_data</span><span class="o">=</span><span class="n">receiver_data</span><span class="p">,</span>
+    <span class="n">cps_data</span><span class="o">=</span><span class="n">cps_data</span><span class="p">,</span>
+    <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
+    <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">ols_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ols_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">std</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+<span class="n">ols_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ols_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+
+<span class="n">ols_cps_imputed_weighted</span> <span class="o">=</span> <span class="n">ols_cps_imputed</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ols_cps_imputed</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">matching_cps_imputed</span> <span class="o">=</span> <span class="n">impute_scf_to_cps</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">Matching</span><span class="p">,</span>
+    <span class="n">donor_data</span><span class="o">=</span><span class="n">donor_data</span><span class="p">,</span>
+    <span class="n">receiver_data</span><span class="o">=</span><span class="n">receiver_data</span><span class="p">,</span>
+    <span class="n">cps_data</span><span class="o">=</span><span class="n">cps_data</span><span class="p">,</span>
+    <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
+    <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">matching_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">matching_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">std</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+<span class="n">matching_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">matching_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+
+<span class="n">matching_cps_imputed_weighted</span> <span class="o">=</span> <span class="n">matching_cps_imputed</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">matching_cps_imputed</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="n">qrf_model</span> <span class="o">=</span> <span class="n">QRF</span><span class="p">()</span>
+<span class="n">fitted_model</span><span class="p">,</span> <span class="n">best_params</span> <span class="o">=</span> <span class="n">qrf_model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span>
+    <span class="n">X_train</span><span class="o">=</span><span class="n">donor_data</span><span class="p">,</span>
+    <span class="n">predictors</span><span class="o">=</span><span class="n">predictors</span><span class="p">,</span>
+    <span class="n">imputed_variables</span><span class="o">=</span><span class="n">imputed_variables</span><span class="p">,</span>
+    <span class="n">weight_col</span><span class="o">=</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+    <span class="n">tune_hyperparameters</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">imputations</span> <span class="o">=</span> <span class="n">fitted_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="o">=</span><span class="n">receiver_data</span><span class="p">)</span>
+
+<span class="n">qrf_cps_imputed</span> <span class="o">=</span> <span class="n">cps_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">qrf_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">imputations</span><span class="p">[</span><span class="mf">0.5</span><span class="p">][</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span>
+
+<span class="n">qrf_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">qrf_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">std</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+<span class="n">qrf_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">qrf_cps_imputed</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+
+<span class="n">qrf_cps_imputed_weighted</span> <span class="o">=</span> <span class="n">qrf_cps_imputed</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span>
+    <span class="n">n</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">qrf_cps_imputed</span><span class="p">),</span>
+    <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="n">weights_normalized</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_all_models_net_worth_log_distributions</span><span class="p">(</span>
+    <span class="n">scf_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">model_results</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot log-transformed net worth distributions for all models in a 2x2 grid.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        scf_data: Original SCF data with networth column</span>
+<span class="sd">        model_results: Dictionary mapping model names to their imputed dataframes</span>
+<span class="sd">        title: Optional title for the entire figure</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Plotly figure with 4 subplots</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">plotly.subplots</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_subplots</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+    
+    <span class="c1"># Create subplots</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span>
+        <span class="n">rows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">subplot_titles</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">model_results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+        <span class="n">vertical_spacing</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
+        <span class="n">horizontal_spacing</span><span class="o">=</span><span class="mf">0.12</span><span class="p">,</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Define safe log transformation</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">safe_log</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">log_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mf">1e-10</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">log_x</span>
+    
+    <span class="c1"># Calculate SCF log values once</span>
+    <span class="n">scf_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">scf_data</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+    <span class="n">scf_log_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">scf_log</span><span class="p">)</span>
+    <span class="n">scf_log_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scf_log</span><span class="p">)</span>
+    
+    <span class="c1"># Define colors</span>
+    <span class="n">scf_color</span> <span class="o">=</span> <span class="s1">&#39;#1f77b4&#39;</span>
+    <span class="n">palette</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">qualitative</span><span class="o">.</span><span class="n">Plotly</span>
+    <span class="n">model_colors</span> <span class="o">=</span> <span class="n">palette</span><span class="p">[:</span><span class="mi">4</span><span class="p">]</span>
+    
+    <span class="c1"># Plot positions</span>
+    <span class="n">positions</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">model_name</span><span class="p">,</span> <span class="n">imputed_data</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">model_results</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">row</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">model_color</span> <span class="o">=</span> <span class="n">model_colors</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        
+        <span class="c1"># Calculate model log values</span>
+        <span class="n">model_log</span> <span class="o">=</span> <span class="n">safe_log</span><span class="p">(</span><span class="n">imputed_data</span><span class="p">[</span><span class="s2">&quot;networth&quot;</span><span class="p">])</span>
+        <span class="n">model_log_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">model_log</span><span class="p">)</span>
+        <span class="n">model_log_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">model_log</span><span class="p">)</span>
+        
+        <span class="c1"># Add SCF histogram (grey/transparent)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="n">scf_log</span><span class="p">,</span>
+                <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+                <span class="n">opacity</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF (weighted by sampling)&quot;</span><span class="p">,</span>
+                <span class="n">marker_color</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="p">(</span><span class="n">idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">),</span>  <span class="c1"># Only show in legend once</span>
+            <span class="p">),</span>
+            <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Add model histogram</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="n">model_log</span><span class="p">,</span>
+                <span class="n">nbinsx</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+                <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; imputations&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">marker_color</span><span class="o">=</span><span class="n">model_color</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Get y-axis range for vertical lines</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2000</span><span class="p">],</span> <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span><span class="p">)</span>
+        
+        <span class="c1"># Add median lines</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">scf_log_median</span><span class="p">,</span> <span class="n">scf_log_median</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2000</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;SCF Median&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span>
+        <span class="p">)</span>
+        
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">model_log_median</span><span class="p">,</span> <span class="n">model_log_median</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2000</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">model_color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2"> Median&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Determine correct axis references for annotations</span>
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">xref</span><span class="p">,</span> <span class="n">yref</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span>
+        <span class="k">elif</span> <span class="n">idx</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">xref</span><span class="p">,</span> <span class="n">yref</span> <span class="o">=</span> <span class="s2">&quot;x2&quot;</span><span class="p">,</span> <span class="s2">&quot;y2&quot;</span>
+        <span class="k">elif</span> <span class="n">idx</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">xref</span><span class="p">,</span> <span class="n">yref</span> <span class="o">=</span> <span class="s2">&quot;x3&quot;</span><span class="p">,</span> <span class="s2">&quot;y3&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xref</span><span class="p">,</span> <span class="n">yref</span> <span class="o">=</span> <span class="s2">&quot;x4&quot;</span><span class="p">,</span> <span class="s2">&quot;y4&quot;</span>
+        
+        <span class="c1"># Add text annotations for statistics</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_annotation</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>  <span class="c1"># Position on the x-axis (log scale)</span>
+            <span class="n">y</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>  <span class="c1"># Position on the y-axis</span>
+            <span class="n">xref</span><span class="o">=</span><span class="n">xref</span><span class="p">,</span>
+            <span class="n">yref</span><span class="o">=</span><span class="n">yref</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Median: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">model_log_median</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&lt;br&gt;Mean: $</span><span class="si">{</span><span class="mi">10</span><span class="o">**</span><span class="n">model_log_mean</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">showarrow</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">bgcolor</span><span class="o">=</span><span class="s2">&quot;rgba(255,255,255,0.8)&quot;</span><span class="p">,</span>
+            <span class="n">bordercolor</span><span class="o">=</span><span class="s2">&quot;rgba(0,0,0,0.3)&quot;</span><span class="p">,</span>
+            <span class="n">borderwidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">font</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
+            <span class="n">xanchor</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span>
+            <span class="n">yanchor</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    
+    <span class="c1"># Update layout</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span> <span class="k">if</span> <span class="n">title</span> <span class="k">else</span> <span class="s2">&quot;Log-transformed net worth distributions by model&quot;</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span>
+        <span class="n">width</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">legend</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=-</span><span class="mf">0.2</span><span class="p">,</span>
+            <span class="n">xanchor</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span>
+            <span class="n">yanchor</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span>
+            <span class="n">orientation</span><span class="o">=</span><span class="s2">&quot;h&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">barmode</span><span class="o">=</span><span class="s2">&quot;overlay&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Update x-axes with custom tick labels</span>
+    <span class="n">tick_values</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">6</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">8</span><span class="p">]</span>
+    <span class="n">tick_labels</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;$&quot;</span> <span class="o">+</span> <span class="nb">format</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="p">(</span><span class="mi">10</span><span class="o">**</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="s2">&quot;,.0f&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tick_values</span>
+    <span class="p">]</span>
+    
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span>
+            <span class="n">tickvals</span><span class="o">=</span><span class="n">tick_values</span><span class="p">,</span> 
+            <span class="n">ticktext</span><span class="o">=</span><span class="n">tick_labels</span><span class="p">,</span>
+            <span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Net Worth (log scale)&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="n">row</span><span class="o">=</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> 
+            <span class="n">col</span><span class="o">=</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span>
+            <span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Frequency&quot;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="n">row</span><span class="o">=</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> 
+            <span class="n">col</span><span class="o">=</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">fig</span>
+
+
+<span class="c1"># Create dictionary of model results</span>
+<span class="n">model_results</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;QRF imputations&quot;</span><span class="p">:</span> <span class="n">qrf_cps_imputed_weighted</span><span class="p">,</span>
+    <span class="s2">&quot;OLS imputations&quot;</span><span class="p">:</span> <span class="n">ols_cps_imputed_weighted</span><span class="p">,</span>
+    <span class="s2">&quot;QuantReg imputations&quot;</span><span class="p">:</span> <span class="n">quantreg_cps_imputed_weighted</span><span class="p">,</span>
+    <span class="s2">&quot;Matching imputations&quot;</span><span class="p">:</span> <span class="n">matching_cps_imputed_weighted</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># Create and show the combined plot</span>
+<span class="n">combined_fig</span> <span class="o">=</span> <span class="n">plot_all_models_net_worth_log_distributions</span><span class="p">(</span><span class="n">scf_data_weighted</span><span class="p">,</span> <span class="n">model_results</span><span class="p">)</span>
+<span class="n">combined_fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><img alt="png" src="../../_images/imputations_model_comparison.png" /></p>
+<p>Comparing the wealth distributions that result from imputing from the SCF on to the CPS with four different models, we can visually recognize the different strengths and limitations of each of them. The implications of using one model instead of another for imputation will be further explored by evaluating the impact wealth imputed data has on microsimulation results.</p>
+</section>
+<section id="wealth-distributions-by-disposable-income-deciles">
+<h2>Wealth distributions by disposable income deciles<a class="headerlink" href="#wealth-distributions-by-disposable-income-deciles" title="Permalink to this heading">#</a></h2>
+<p>Lastly, to confidently say that our wealth imputations are coherent with other household characteristics, we can compare the average net worth values per disposable income decile for each of the four methods used.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">income_col</span>  <span class="o">=</span> <span class="s2">&quot;household_net_income&quot;</span>
+<span class="n">wealth_col</span>  <span class="o">=</span> <span class="s2">&quot;networth&quot;</span>          <span class="c1"># e.g. &quot;net_wealth&quot;</span>
+
+<span class="n">decile_means</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">model</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">model_results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># Create 1–10 decile indicator (unweighted)</span>
+    <span class="n">tmp</span><span class="p">[</span><span class="s2">&quot;income_decile&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">pd</span><span class="o">.</span><span class="n">qcut</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="n">income_col</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Mean wealth in each decile</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">tmp</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;income_decile&quot;</span><span class="p">)[</span><span class="n">wealth_col</span><span class="p">]</span>
+           <span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+           <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;mean_wealth&quot;</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">&quot;Model&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span>
+    <span class="n">decile_means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+<span class="n">avg_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">decile_means</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">avg_df</span><span class="p">[</span><span class="s2">&quot;income_decile&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">avg_df</span><span class="p">[</span><span class="s2">&quot;income_decile&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+<span class="n">fig</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+    <span class="n">avg_df</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="s2">&quot;income_decile&quot;</span><span class="p">,</span>
+    <span class="n">y</span><span class="o">=</span><span class="s2">&quot;mean_wealth&quot;</span><span class="p">,</span>
+    <span class="n">color</span><span class="o">=</span><span class="s2">&quot;Model&quot;</span><span class="p">,</span>
+    <span class="n">barmode</span><span class="o">=</span><span class="s2">&quot;group&quot;</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;income_decile&quot;</span><span class="p">:</span> <span class="s2">&quot;Net-income decile (1 = lowest, 10 = highest)&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;mean_wealth&quot;</span><span class="p">:</span>   <span class="s2">&quot;Average household net worth ($)&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="n">title</span><span class="o">=</span><span class="p">(</span>
+        <span class="s2">&quot;Average household net worth by net-income decile&lt;br&gt;&quot;</span>
+        <span class="s2">&quot;&lt;sup&gt;Comparison of imputation models&lt;/sup&gt;&quot;</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+    <span class="n">xaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">dtick</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tick0</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+    <span class="n">paper_bgcolor</span><span class="o">=</span><span class="s2">&quot;#F0F0F0&quot;</span><span class="p">,</span>
+    <span class="n">plot_bgcolor</span><span class="o">=</span><span class="s2">&quot;#F0F0F0&quot;</span><span class="p">,</span>
+    <span class="n">yaxis_tickformat</span><span class="o">=</span><span class="s2">&quot;$,.0f&quot;</span><span class="p">,</span>
+    <span class="n">hovermode</span><span class="o">=</span><span class="s2">&quot;x unified&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">showgrid</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">showgrid</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><img alt="png" src="../../_images/by_income_decile_comparisons.png" /></p>
+<p>QRF clearly presents the most consistent and plausable realtionship to disposable income, with a gradually increasing average as the deciles increase. This plot also supports the behavior observed above showing the extreme negative and positive predictions that OLS and QuantReg produce at the left and right tails, respectively, and Matching’s underprediction at every decile.</p>
 </section>
 </section>
 
@@ -953,6 +1225,8 @@
 <li><a class="reference internal" href="#loading-and-preparing-the-scf-and-cps-datasets">Loading and preparing the SCF and CPS datasets</a></li>
 <li><a class="reference internal" href="#running-wealth-imputation-with-autoimpute">Running wealth imputation with autoimpute</a></li>
 <li><a class="reference internal" href="#comparing-method-performance">Comparing method performance</a></li>
+<li><a class="reference internal" href="#comparing-with-other-methods">Comparing with other methods</a></li>
+<li><a class="reference internal" href="#wealth-distributions-by-disposable-income-deciles">Wealth distributions by disposable income deciles</a></li>
 </ul>
 </li>
 </ul>
