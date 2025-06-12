@@ -2,24 +2,24 @@
 
 \subsection{Evaluation metrics}
 
-To properly assess imputation quality for wealth data, we employ quantile loss to evaluate performance across quantiles. Quantile (or pinball) loss evaluates how well a model predicts a chosen conditional quantile by assigning an asymmetric penalty that depends on the sign of the forecast error and the target quantile. Formally, for residual $e_i = y_i - \hat{y}_i$ and quantile level $\tau\in(0,1)$, the loss is 
+To properly assess imputation quality for wealth data, we employ quantile loss to evaluate performance across quantiles. Quantile (or pinball) loss evaluates how well a model predicts a chosen conditional quantile by assigning an asymmetric penalty that depends on the sign of the forecast error and the target quantile \citep{koenker1978regression}. Formally, for residual $e_i = y_i - \hat{y}_i$ and quantile level $\tau\in(0,1)$, the loss is 
 
 $$L_\tau(e_i)=\max\!\bigl(\tau\,e_i,\;(\tau-1)\,e_i\bigr);$$
 
 thus, under-prediction of an upper-tail quantile (large positive $e_i$) is penalized at rate $\tau$, whereas over-prediction is penalized at rate $\tau-1$. Minimising this piece-wise linear function ensures that, in expectation, exactly $\tau$ percent of true outcomes fall below the model's prediction, giving the estimator its distribution-calibrating property first formalised by Koenker and Bassett \citep{koenker1978regression}. Because the weights differ for positive versus negative errors, quantile loss captures directional bias. This is a crucial feature when imputing highly skewed variables like wealth, where large under-estimates in the right tail must be discouraged more strongly than equal-sized over-estimates. Compared with mean-squared or mean-absolute error, which optimise the conditional mean or median and penalise errors symmetrically, quantile loss directly targets the entire conditional distribution and remains robust to outliers, making it the appropriate metric for assessing the performance of imputation models when distribution-awareness is a priority \citep{ghenis2018quantile}.
 
-Additionally, we ensure that the resulting wealth distributions resemble that of the donor wealth distribution in the SCF. The SCF includes household weights to quantify how representative each recorded household and its data are. Thus, by sampling the SCF distribution according to its weights, we can get a rough estimate of the true US wealth distribution, which simultaneously serves as a visual check for imputed wealth distributions.
+Additionally, we ensure that the resulting wealth distributions resemble that of the donor wealth distribution in the SCF. The SCF includes household weights to quantify how representative each recorded household and its data are. Thus, by sampling the SCF distribution according to its weights, we can get an accurate estimate of the true US wealth distribution, which simultaneously serves as a visual check for imputed wealth distributions.
 
-Lastly, by evaluating the average wealth by disposable income decile that results from each method's imputations, we can attest that wealth correlates with income as expected, with households that have the highest disposable income also having the highest wealth. 
+Lastly, by evaluating the average wealth by disposable income decile that results from each method's imputations, we can compare whether and how sensibly wealth imputations correlate with income as expected for each method's results, with households that have the highest disposable income also having the highest wealth. 
 
 \subsection{Experimental setup}
 
-Using Microimpute's $\texttt{autoimpute}$ function, we evaluate QRF against OLS, standard Quantile Regression, and hot deck Matching in net worth imputation. To create a ground truth for evaluation, we employ cross-validation, splitting the SCF into 5 folds, or subsets. For each model at a time, we:
+Using Microimpute's $\texttt{autoimpute}$ function, we evaluate QRF against OLS, standard Quantile Regression, and hot Deck Matching in net worth imputation. To create a ground truth for evaluation, we employ cross-validation, splitting the SCF into 5 folds, or subsets. For each model at a time, we:
 
 \begin{enumerate}
     \item Mask the wealth values of one holdout subset at a time
 
-    \item Tune the hyperparameters of those models that have a flexible set-up to the SCF data set, namely Matching and QRF
+    \item Tune the hyperparameters of those models that have a flexible set-up to the SCF data set, namely Matching\footnote{hyperparameters: $\texttt{dist\_fun}$, $\texttt{constrained}$, $\texttt{constr\_alg}$, $\texttt{k}$} and QRF\footnote{hyperparameters: $\texttt{n\_estimators}$, $\texttt{min\_samples\_split}$, $\texttt{min\_samples\_leaf}$, $\texttt{max\_features}$, $\texttt{bootstrap}$}
     \begin{enumerate}
         \item SCF survey data weights (captured in the variable $\texttt{household\_weight}$) are passed into $\texttt{autoimpute}$ for sampling
     \end{enumerate}
@@ -41,7 +41,7 @@ Next, the imputation from the SCF onto the CPS is replicated for the other three
 
 \subsection{Imputation results}
 
-The cross-validation results demonstrate QRF's superior performance across the wealth distribution. QRF achieved an average quantile loss of 0.059 across all quantiles, outperforming OLS (0.075), hot deck Matching (0.076), and standard Quantile Regression (0.063). This 21-22\% improvement over OLS and Matching and 6\% improvement over Quantile Regression represents a substantial gain in imputation accuracy.
+The cross-validation results demonstrate QRF's superior performance across the wealth distribution. QRF achieved an average quantile loss of 0.059 across all quantiles, outperforming OLS (0.075), Hot Deck Matching (0.076), and standard Quantile Regression (0.063). This 21-22\% improvement over OLS and Matching and 6\% improvement over Quantile Regression represents a substantial gain in imputation accuracy.
 
 The performance advantage was particularly pronounced in the middle and upper-middle portions of the distribution (20th-80th percentiles), where QRF maintained consistently low quantile loss values between 0.07-0.09. While Quantile Regression showed competitive performance at extreme quantiles (above the 85th percentile), QRF's overall consistency across the entire distribution made it the optimal choice for wealth imputation.
 
