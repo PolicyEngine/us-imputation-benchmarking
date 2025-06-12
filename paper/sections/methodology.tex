@@ -1,16 +1,16 @@
 \section{Methodology}\label{sec:methodology}
 
-\subsection{Microimpute package implementation}
+\subsection{$\texttt{microimpute}$ package implementation}
 
-Microimpute is PolicyEngine's specialized Python framework that enables variable imputation through multiple statistical methods, providing a consistent interface for comparing and benchmarking different imputation approaches using quantile loss calculations.
+$\texttt{microimpute}$ is PolicyEngine's specialized Python framework that enables variable imputation through multiple statistical methods, providing a consistent interface for comparing and benchmarking different imputation approaches using quantile loss calculations.
 
 \subsubsection{Core capabilities}
 
-The package currently supports four primary imputation methods: hot deck Matching, Ordinary Least Squares Linear Regression, Quantile Regression Forests (QRF), and Quantile Regression. This approach allows researchers to systematically evaluate which technique provides the most accurate results for their specific dataset and research objectives.
+The package currently supports four primary imputation methods: Hot Deck Matching, Ordinary Least Squares Linear Regression, Quantile Regression Forests (QRF), and Quantile Regression. This approach allows researchers to systematically evaluate which technique provides the most accurate results for their specific dataset and research objectives.
 
 \subsubsection{Key features for microimputation}
 
-Microimpute addresses imputation challenges between complex survey datasets through several specialized features:
+$\texttt{microimpute}$ addresses imputation challenges between complex survey datasets through several specialized features:
 
 \begin{enumerate}
     \item \textbf{Survey data weights integration}: Handles survey data weights through sampling to ensure that models are trained on a donor data set representative of the true distribution.
@@ -22,6 +22,6 @@ Microimpute addresses imputation challenges between complex survey datasets thro
 
 \subsubsection{Implementation details}
 
-Microimpute's QRF implementation extends scikit-learn's Random Forest to provide full conditional quantile estimation, enabling stochastic imputation that preserves distributional properties rather than relying solely on point estimates. OLS and QuantReg methods are implemented using statsmodels, while Matching uses the R $\texttt{StatMatch}$ package's hot deck matching capabilities. The Microimpute package is designed to be modular, allowing for easy extension with additional imputation methods in the future.
+$\texttt{microimpute}$'s QRF implementation extends $\texttt{scikit-learn}$'s Random Forest to provide full conditional quantile estimation, enabling stochastic imputation that preserves distributional properties rather than relying solely on point estimates. OLS and QuantReg methods are implemented using $\texttt{statsmodels}$, while Matching uses the R $\texttt{StatMatch}$ package's Hot Deck Matching capabilities. The $\texttt{microimpute}$ package is designed to be modular, allowing for easy extension with additional imputation methods in the future.
 
 Complete documentation, implementation details, and usage examples are available at https://policyengine.github.io/microimpute/.
