@@ -14,19 +14,19 @@ Lastly, by evaluating the average wealth by disposable income decile that result
 
 \subsection{Experimental setup}
 
-Using Microimpute's \texttt{autoimpute} function, we evaluate QRF against OLS, standard Quantile Regression, and hot deck Matching in net worth imputation. To create a ground truth for evaluation, we employ cross-validation, splitting the SCF into 5 folds, or subsets. For each model at a time, we:
+Using Microimpute's $\texttt{autoimpute}$ function, we evaluate QRF against OLS, standard Quantile Regression, and hot deck Matching in net worth imputation. To create a ground truth for evaluation, we employ cross-validation, splitting the SCF into 5 folds, or subsets. For each model at a time, we:
 
 \begin{enumerate}
     \item Mask the wealth values of one holdout subset at a time
 
     \item Tune the hyperparameters of those models that have a flexible set-up to the SCF data set, namely Matching and QRF
     \begin{enumerate}
-        \item SCF survey data weights are passed into \texttt{autoimpute} for stratified sampling
+        \item SCF survey data weights (captured in the variable $\texttt{household\_weight}$) are passed into $\texttt{autoimpute}$ for sampling
     \end{enumerate}
 
-    \item Impute wealth onto the SCF holdout set using each method with the remaining four folds as the training data
+    \item Impute wealth ($\texttt{networth}$) onto the SCF holdout set using each method with the remaining four folds as the training data
     \begin{enumerate}
-        \item Demographic and financial variables available in both surveys behave as predictors
+        \item Demographic and financial variables available in both surveys behave as predictors, after being preprocess for consistent variable names and encoding: $\texttt{is\_female}$, $\texttt{age}$, $\texttt{race}$, $\texttt{own\_children\_in\_household}$, $\texttt{employment\_income}$, $\texttt{interest\_dividend\_income}$, $\texttt{pension\_income}$ 
         \item Each model performs imputation at 20 equally spaced quantiles
     \end{enumerate}
 
