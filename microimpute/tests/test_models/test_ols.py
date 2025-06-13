@@ -79,15 +79,7 @@ def test_ols_example(
         imputed_variables: List of target column names.
         quantiles: List of quantiles to predict.
     """
-    X_train, X_test, dummy_info = preprocess_data(data)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(data)
 
     # Initialize OLS model
     model = OLS()

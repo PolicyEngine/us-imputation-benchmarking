@@ -22,6 +22,8 @@ class QRFResults(ImputerResults):
         predictors: List[str],
         imputed_variables: List[str],
         seed: int,
+        imputed_vars_dummy_info: Optional[Dict[str, str]] = None,
+        original_predictors: Optional[List[str]] = None,
     ) -> None:
         """Initialize the QRF results.
 
@@ -30,8 +32,18 @@ class QRFResults(ImputerResults):
             predictors: List of column names used as predictors.
             imputed_variables: List of column names to be imputed.
             seed: Random seed for reproducibility.
+            imputed_vars_dummy_info: Optional dictionary containing information
+                about dummy variables for imputed variables.
+            original_predictors: Optional list of original predictor variable
+                names before dummy encoding.
         """
-        super().__init__(predictors, imputed_variables, seed)
+        super().__init__(
+            predictors,
+            imputed_variables,
+            seed,
+            imputed_vars_dummy_info,
+            original_predictors,
+        )
         self.models = models
 
     @validate_call(config=VALIDATE_CONFIG)
@@ -116,6 +128,7 @@ class QRF(Imputer):
         X_train: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
+        original_predictors: Optional[List[str]] = None,
         tune_hyperparameters: bool = False,
         **qrf_kwargs: Any,
     ) -> QRFResults:
@@ -161,6 +174,8 @@ class QRF(Imputer):
                             models=self.models,
                             predictors=predictors,
                             imputed_variables=imputed_variables,
+                            imputed_vars_dummy_info=self.imputed_vars_dummy_info,
+                            original_predictors=self.original_predictors,
                             seed=self.seed,
                         ),
                         qrf_kwargs,
@@ -198,6 +213,8 @@ class QRF(Imputer):
                     models=self.models,
                     predictors=predictors,
                     imputed_variables=imputed_variables,
+                    imputed_vars_dummy_info=self.imputed_vars_dummy_info,
+                    original_predictors=self.original_predictors,
                     seed=self.seed,
                 )
         except Exception as e:

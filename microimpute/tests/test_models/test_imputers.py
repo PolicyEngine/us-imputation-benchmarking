@@ -12,10 +12,7 @@ import pandas as pd
 import pytest
 from sklearn.datasets import load_diabetes
 
-from microimpute.comparisons.data import (
-    postprocess_imputations,
-    preprocess_data,
-)
+from microimpute.comparisons.data import preprocess_data
 from microimpute.config import QUANTILES
 from microimpute.models import *
 
@@ -91,15 +88,7 @@ def test_fit_predict_interface(
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["s1"]
 
-    X_train, X_test, dummy_info = preprocess_data(diabetes_data)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(diabetes_data)
 
     # Initialize the model
     model = model_class()
@@ -112,12 +101,6 @@ def test_fit_predict_interface(
         )
     else:
         fitted_model = model.fit(X_train, predictors, imputed_variables)
-
-    # Check that the model stored the variable names
-    assert model.predictors == predictors
-    assert model.imputed_variables == imputed_variables
-    assert fitted_model.predictors == predictors
-    assert fitted_model.imputed_variables == imputed_variables
 
     # Predict with explicit quantiles
     predictions = fitted_model.predict(X_test, quantiles)
@@ -163,12 +146,8 @@ def test_string_column_validation() -> None:
     # Create a model to test
     model = OLS()
 
-    data, dummy_info = preprocess_data(data, full_data=True)
+    data = preprocess_data(data, full_data=True)
 
-    for old_col, new_cols in dummy_info["column_mapping"].items():
-        if old_col in columns:
-            columns.remove(old_col)
-            columns.extend(new_cols)
     # Test that it raises a ValueError with the expected message
     model._validate_data(data, columns)
 
@@ -186,23 +165,14 @@ def test_imputation_categorical_bool_vars() -> None:
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["categorical", "bool"]
 
-    X_train, X_test, dummy_info = preprocess_data(df)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(df)
 
     ols = OLS()
     fitted_ols = ols.fit(X_train, predictors, imputed_variables)
     ols_predictions = fitted_ols.predict(X_test)
 
-    imputations = postprocess_imputations(ols_predictions, dummy_info)
-    assert imputations[0.5]["categorical"].dtype == "object"
-    assert imputations[0.5]["bool"].dtype == "bool"
+    assert ols_predictions[0.5]["categorical"].dtype == "object"
+    assert ols_predictions[0.5]["bool"].dtype == "bool"
 
 
 @pytest.mark.parametrize(
@@ -213,21 +183,12 @@ def test_weighted_training(
 ) -> None:
     """Ensure models can be trained using sampling weights."""
 
-    X_train, _, dummy_info = preprocess_data(diabetes_data)
+    X_train, _ = preprocess_data(diabetes_data)
     # Create a simple positive weight column after preprocessing
     X_train["wgt"] = range(1, len(X_train) + 1)
 
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["s1"]
-
-    # Update column names to handle dummy variables
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
 
     model = model_class()
 

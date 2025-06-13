@@ -41,18 +41,11 @@ def test_matching_cross_validation(
     imputed_variables = ["s1", "s4"]
     data = data[predictors + imputed_variables]
 
-    data, dummy_info = preprocess_data(
+    data = preprocess_data(
         data,
         full_data=True,
         normalize=False,
     )
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
 
     matching_results = cross_validate_model(
         Matching, data, predictors, imputed_variables
@@ -96,15 +89,7 @@ def test_matching_example_use(
     imputed_variables = ["s1", "s4"]
     data = data[predictors + imputed_variables]
 
-    X_train, X_test, dummy_info = preprocess_data(data)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(data)
 
     # Initialize Matching model
     model = Matching()
@@ -175,22 +160,14 @@ def test_matching_hyperparameter_tuning(
     valid_data = data.iloc[valid_idx].reset_index(drop=True)
 
     # Preprocess training and validation data
-    X_train, dummy_info_train = preprocess_data(
+    X_train = preprocess_data(
         train_data,
         full_data=True,
     )
-    X_valid, dummy_info_valid = preprocess_data(
+    X_valid = preprocess_data(
         valid_data,
         full_data=True,
     )
-
-    for col, dummy_cols in dummy_info_train["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
 
     # Initialize Matching models - one with default parameters, one with tuning
     default_model = Matching()
