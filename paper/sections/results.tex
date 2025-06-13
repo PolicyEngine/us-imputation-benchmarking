@@ -41,9 +41,9 @@ Next, the imputation from the SCF onto the CPS is replicated for the other three
 
 \subsection{Imputation results}
 
-The cross-validation results demonstrate QRF's superior performance across the wealth distribution. QRF achieved an average quantile loss of 0.059 across all quantiles, outperforming OLS (0.075), Hot Deck Matching (0.076), and standard Quantile Regression (0.063). This 21-22\% improvement over OLS and Matching and 6\% improvement over Quantile Regression represents a substantial gain in imputation accuracy.
+The cross-validation results demonstrate QRF's superior performance across the wealth distribution. QRF achieved an average quantile loss of 6.6m across all quantiles, outperforming OLS (8.3m), Hot Deck Matching (7.75m), and standard Quantile Regression (7.05m). This 20.5\% improvement over OLS and 14.8\% over Matching and 6.4\% improvement over Quantile Regression represents a substantial gain in imputation accuracy.
 
-The performance advantage was particularly pronounced in the middle and upper-middle portions of the distribution (20th-80th percentiles), where QRF maintained consistently low quantile loss values between 0.07-0.09. While Quantile Regression showed competitive performance at extreme quantiles (above the 85th percentile), QRF's overall consistency across the entire distribution made it the optimal choice for wealth imputation.
+The performance advantage was particularly pronounced in the middle portions of the distribution (10th-80th percentiles), where QRF maintained consistently lower quantile loss values. While Quantile Regression showed competitive performance at extreme quantiles (above the 85th percentile), QRF's overall consistency across the entire distribution made it the optimal choice for wealth imputation.
 
 Microimpute's automated hyperparameter tuning contributed significantly to these results. The optimal QRF configuration identified through cross-validation included 200 trees and a minimum of 5 samples per leaf node for a split. These parameters balanced model complexity with generalization capability, preventing overfitting while capturing the nuanced relationships between demographic predictors and wealth outcomes.
 
@@ -58,9 +58,9 @@ Comparing all four models to each other, we can evaluate performance through qua
     \label{fig:quantile_loss_comparison}
 \end{figure}
 
-\subsubsection{Imputed wealth distribution comparisons}
-
 We observe how QRF proves to be the best-performing model out of the four. It significantly outperforms Matching and OLS on average, while only being outperformed by QuantReg past the 80th quantile. Matching's performance presents the perfect opportunity to see the quantile loss's directional bias at work. Because Matching does not incorporate quantile information into its imputation process in any way, it will match donor and receiver units, and thus impute values identically regardless of the quantile at work. The laddering behavior observed above results from the fact that Matching's wealth imputations consistently underpredict relative to the true wealth values, and this property is increasingly favored for quantiles below the median, and increasingly penalized as quantiles approach the right end of the distribution. 
+
+\subsubsection{Imputed wealth distribution comparisons}
 
 \begin{figure}[h]
     \centering
@@ -69,7 +69,7 @@ We observe how QRF proves to be the best-performing model out of the four. It si
     \label{fig:imputation_distributions_method_comparison}
 \end{figure}
 
-By visually comparing the wealth distributions resulting from imputing with each method, and comparing them to the weighted donor distribution, we gain a more comprehensive understanding of imputation performance, moving past the test quantile loss average measured on the SCF. 
+By visually comparing the wealth distributions resulting from imputing with each method, and comparing them to the weighted donor distribution, we gain a more comprehensive understanding of imputation performance, moving past the test quantile loss average measured on the SCF. The distribution of wealth values imputed by QRF closely resembles the original SCF distribution, suggesting that QRF is not only the best method in terms of quantile loss but also strong when achieving distributional estimates close to the true wealth distribution in the United States. Because Matching directly takes values from the donor distribution and imputes them onto the receiver, it is unsurprising that its distribution closely resembles the donor distribution. However, Matching's performance in quantile loss confirms that even if it takes the exact values from the donor, it may struggle to uncover the non-linear relationship between the different predictors and wealth values, resulting in a seemingly correct data distribution but innacurate imputation given certain household characteristics. Meanwhile, OLS and QuantReg fail to capture the variability across the distribution and impute most values at the lower or higher ends of the distribution. 
 
 \subsubsection{Distribution of wealth by disposable income decile}
 
@@ -80,4 +80,4 @@ By visually comparing the wealth distributions resulting from imputing with each
     \label{fig:imputation_comparison_by_income_decile}
 \end{figure}
 
-These results support the observations above, with QRF presenting the most consistent and plausible relationship to disposable income, with a gradually increasing average as the deciles increase. This plot also demonstrates the caveats of the other models, showing the extreme negative and positive predictions that OLS and QuantReg produce at the left and right tails, respectively, and Matching's underprediction at every decile.
+These results support the observations above, with QRF presenting the most consistent and plausible relationship to disposable income, with a gradually increasing average as the deciles increase. This plot also demonstrates the caveats of the other models, for example showing the lower variability in OLS's predictions, and Matching's consistent underprediction across deciles.
