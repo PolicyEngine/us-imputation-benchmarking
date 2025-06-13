@@ -64,19 +64,9 @@ def test_quantile_comparison_diabetes() -> None:
 
 def test_quantile_comparison_scf() -> None:
     """Test the end-to-end quantile loss comparison workflow on the scf data set."""
-    X_train, X_test, PREDICTORS, IMPUTED_VARIABLES, dummy_info = (
-        prepare_scf_data(full_data=False, years=2019)
+    X_train, X_test, PREDICTORS, IMPUTED_VARIABLES = prepare_scf_data(
+        full_data=False, years=2019
     )
-
-    if dummy_info:
-        # Retrieve new predictors after processed data
-        for orig_col, dummy_cols in dummy_info["column_mapping"].items():
-            if orig_col in IMPUTED_VARIABLES:
-                IMPUTED_VARIABLES.remove(orig_col)
-                IMPUTED_VARIABLES.extend(dummy_cols)
-            if orig_col in PREDICTORS:
-                PREDICTORS.remove(orig_col)
-                PREDICTORS.extend(dummy_cols)
 
     # Shrink down the data by sampling
     X_train = X_train.sample(frac=0.01, random_state=RANDOM_STATE)

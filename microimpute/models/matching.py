@@ -33,6 +33,8 @@ class MatchingResults(ImputerResults):
         predictors: List[str],
         imputed_variables: List[str],
         seed: int,
+        imputed_vars_dummy_info: Optional[Dict[str, Any]] = None,
+        original_predictors: Optional[List[str]] = None,
         hyperparameters: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the matching model.
@@ -43,10 +45,20 @@ class MatchingResults(ImputerResults):
             predictors: List of column names to use as predictors.
             imputed_variables: List of column names to impute.
             seed: Random seed for reproducibility.
+            imputed_vars_dummy_info: Optional dictionary containing information
+                about dummy variables for imputed variables.
+            original_predictors: Optional list of original predictor names
+                before dummy encoding.
             hyperparameters: Optional dictionary of hyperparameters for the
                 matching function, specified after tunning.
         """
-        super().__init__(predictors, imputed_variables, seed)
+        super().__init__(
+            predictors,
+            imputed_variables,
+            seed,
+            imputed_vars_dummy_info,
+            original_predictors,
+        )
         self.matching_hotdeck = matching_hotdeck
         self.donor_data = donor_data
         self.hyperparameters = hyperparameters
@@ -342,6 +354,7 @@ class Matching(Imputer):
         X_train: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
+        original_predictors: Optional[List[str]] = None,
         tune_hyperparameters: bool = False,
         **matching_kwargs: Any,
     ) -> MatchingResults:
@@ -380,6 +393,8 @@ class Matching(Imputer):
                         donor_data=self.donor_data,
                         predictors=predictors,
                         imputed_variables=imputed_variables,
+                        imputed_vars_dummy_info=self.imputed_vars_dummy_info,
+                        original_predictors=self.original_predictors,
                         seed=self.seed,
                         hyperparameters=best_params,
                     ),
@@ -401,6 +416,8 @@ class Matching(Imputer):
                     donor_data=self.donor_data,
                     predictors=predictors,
                     imputed_variables=imputed_variables,
+                    imputed_vars_dummy_info=self.imputed_vars_dummy_info,
+                    original_predictors=self.original_predictors,
                     seed=self.seed,
                     hyperparameters=matching_kwargs,
                 )

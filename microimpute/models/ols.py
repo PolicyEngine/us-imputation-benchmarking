@@ -23,6 +23,8 @@ class OLSResults(ImputerResults):
         predictors: List[str],
         imputed_variables: List[str],
         seed: int,
+        imputed_vars_dummy_info: Optional[Dict[str, str]] = None,
+        original_predictors: Optional[List[str]] = None,
     ) -> None:
         """Initialize the OLS results.
 
@@ -31,8 +33,18 @@ class OLSResults(ImputerResults):
             predictors: List of predictor variable names.
             imputed_variables: List of imputed variable names.
             seed: Random seed for reproducibility.
+            imputed_vars_dummy_info: Optional dictionary containing information
+                about dummy variables for imputed variables.
+            original_predictors: Optional list of original predictor variable
+                names before dummy encoding.
         """
-        super().__init__(predictors, imputed_variables, seed)
+        super().__init__(
+            predictors,
+            imputed_variables,
+            seed,
+            imputed_vars_dummy_info,
+            original_predictors,
+        )
         self.models = models
 
     @validate_call(config=VALIDATE_CONFIG)
@@ -192,6 +204,7 @@ class OLS(Imputer):
         X_train: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
+        original_predictors: Optional[List[str]] = None,
     ) -> OLSResults:
         """Fit the OLS model to the training data.
 
@@ -224,6 +237,8 @@ class OLS(Imputer):
                 models=self.models,
                 predictors=predictors,
                 imputed_variables=imputed_variables,
+                imputed_vars_dummy_info=self.imputed_vars_dummy_info,
+                original_predictors=self.original_predictors,
                 seed=self.seed,
             )
         except Exception as e:
