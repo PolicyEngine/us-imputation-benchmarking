@@ -25,3 +25,15 @@ build:
 clean:
 	rm -rf dist/ build/ *.egg-info/
 	rm -rf docs/_build/
+
+paper: main
+
+main: $(wildcard paper/sections/**/*.tex) $(wildcard paper/bibliography/*.bib) paper/main.tex paper/macros.tex
+	cd paper && \
+	BIBINPUTS=./bibliography pdflatex main && \
+	BIBINPUTS=./bibliography bibtex main && \
+	pdflatex main && \
+	pdflatex main
+
+clean-paper:
+	rm -f paper/*.aux paper/*.bbl paper/*.blg paper/*.log paper/*.out paper/*.toc paper/main.pdf paper/sections/**/*.aux
