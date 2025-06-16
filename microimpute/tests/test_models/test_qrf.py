@@ -79,15 +79,7 @@ def test_qrf_example(
     imputed_variables = ["s1", "s4"]
     data = data[predictors + imputed_variables]
 
-    X_train, X_test, dummy_info = preprocess_data(data)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(data)
 
     # Initialize QRF model
     model = QRF()
@@ -158,20 +150,12 @@ def test_qrf_hyperparameter_tuning(
     valid_data = data.iloc[valid_idx].reset_index(drop=True)
 
     # Preprocess training and validation data
-    X_train, dummy_info_train = preprocess_data(
+    X_train = preprocess_data(
         train_data, full_data=True, train_size=1.0, test_size=0.0
     )
-    X_valid, dummy_info_valid = preprocess_data(
+    X_valid = preprocess_data(
         valid_data, full_data=True, train_size=1.0, test_size=0.0
     )
-
-    for col, dummy_cols in dummy_info_train["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
 
     # Initialize QRF models - one with default parameters, one with tuning
     default_model = QRF()
@@ -294,15 +278,7 @@ def test_qrf_imputes_multiple_variables(
     imputed_variables = ["s1", "s4"]
     data = data[predictors + imputed_variables]
 
-    X_train, X_test, dummy_info = preprocess_data(data)
-
-    for col, dummy_cols in dummy_info["column_mapping"].items():
-        if col in predictors:
-            predictors.remove(col)
-            predictors.extend(dummy_cols)
-        elif col in imputed_variables:
-            imputed_variables.remove(col)
-            imputed_variables.extend(dummy_cols)
+    X_train, X_test = preprocess_data(data)
 
     # Initialize QRF model
     model = QRF()

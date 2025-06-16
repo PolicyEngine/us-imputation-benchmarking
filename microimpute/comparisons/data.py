@@ -249,8 +249,7 @@ def prepare_scf_data(
             "hhsex",  # sex of head of household
             "age",  # age of respondent
             "married",  # marital status of respondent
-            "kids",  # number of children in household
-            "educ",  # highest level of education
+            # "kids",  # number of children in household
             "race",  # race of respondent
             "income",  # total annual income of household
             "wageinc",  # income from wages and salaries
@@ -284,18 +283,18 @@ def prepare_scf_data(
 
         if full_data:
             logger.info("Processing full dataset without splitting")
-            data, dummy_info = preprocess_data(data, full_data=True)
+            data = preprocess_data(data, full_data=True)
             logger.info(
                 f"Returning full processed dataset with shape {data.shape}"
             )
-            return data, PREDICTORS, IMPUTED_VARIABLES, dummy_info
+            return data, PREDICTORS, IMPUTED_VARIABLES
         else:
             logger.info("Splitting data into train and test sets")
-            X_train, X_test, dummy_info = preprocess_data(data)
+            X_train, X_test = preprocess_data(data)
             logger.info(
                 f"Train set shape: {X_train.shape}, Test set shape: {X_test.shape}"
             )
-            return X_train, X_test, PREDICTORS, IMPUTED_VARIABLES, dummy_info
+            return X_train, X_test, PREDICTORS, IMPUTED_VARIABLES
 
     except Exception as e:
         logger.error(f"Error in prepare_scf_data: {str(e)}")
@@ -340,460 +339,80 @@ def preprocess_data(
         f"Preprocessing data with shape {data.shape}, full_data={full_data}"
     )
 
-    # Initialize dummy information dictionary
-    dummy_info = {
-        "original_dtypes": {},
-        "column_mapping": {},
-        "original_categories": {},
-    }
+    if data.empty:
+        raise ValueError("Data must not be None or empty")
+    # Check for missing values
+    missing_count = data.isna().sum().sum()
+    if missing_count > 0:
+        logger.warning(f"Data contains {missing_count} missing values")
 
-    try:
-        if data.empty:
-            raise ValueError("Data must not be None or empty")
-        # Check for missing values
-        missing_count = data.isna().sum().sum()
-        if missing_count > 0:
-            logger.warning(f"Data contains {missing_count} missing values")
+    if normalize:
+        logger.debug("Normalizing data")
+        try:
+            mean = data.mean(axis=0)
+            std = data.std(axis=0)
 
-        # Transform boolean and categorical columns to numerical format
+            # Check for constant columns (std=0)
+            constant_cols = std[std == 0].index.tolist()
+            if constant_cols:
+                logger.warning(
+                    f"Found constant columns (std=0): {constant_cols}"
+                )
+                # Handle constant columns by setting std to 1 to avoid division by zero
+                for col in constant_cols:
+                    std[col] = 1
+
+            # Apply normalization
+            data = (data - mean) / std
+            logger.debug("Data normalized successfully")
+
+            # Store normalization parameters
+            normalization_params = {
+                col: {"mean": mean[col], "std": std[col]}
+                for col in data.columns
+            }
+
+            logger.debug(f"Normalization parameters: {normalization_params}")
+
+        except Exception as e:
+            logger.error(f"Error during data normalization: {str(e)}")
+            raise RuntimeError("Failed to normalize data") from e
+
+    if full_data and normalize:
+        logger.info("Returning full preprocessed dataset")
+        return (
+            data,
+            normalization_params,
+        )
+    elif full_data:
+        logger.info("Returning full preprocessed dataset")
+        return data
+    else:
         logger.debug(
-            "Converting boolean and categorical columns to numerical format"
+            f"Splitting data with train_size={train_size}, test_size={test_size}"
         )
         try:
-            # Identify boolean columns and convert them to strings
-            bool_columns = [
-                col
-                for col in data.columns
-                if (
-                    pd.api.types.is_bool_dtype(data[col])
-                    or (
-                        pd.api.types.is_integer_dtype(data[col])
-                        and set(data[col].unique()) == {0, 1}
-                    )
-                    or (
-                        pd.api.types.is_float_dtype(data[col])
-                        and set(data[col].unique()) == {0.0, 1.0}
-                    )
+            X_train, X_test = train_test_split(
+                data,
+                test_size=test_size,
+                train_size=train_size,
+                random_state=random_state,
+            )
+            logger.info(
+                f"Data split into train ({X_train.shape}) and test ({X_test.shape}) sets"
+            )
+            if normalize:
+                return (
+                    X_train,
+                    X_test,
+                    normalization_params,
                 )
-            ]
-
-            if bool_columns:
-                logger.info(
-                    f"Found {len(bool_columns)} boolean columns to convert: {bool_columns}"
-                )
-                for col in bool_columns:
-                    dummy_info["original_dtypes"][col] = (
-                        "bool",
-                        data[col].dtype,
-                    )
-                    # For boolean columns, map the column to itself since we don't create dummies
-                    dummy_info["column_mapping"][col] = [col]
-                    data[col] = data[col].astype("float64")
-
-            # Identify string and object columns (excluding already processed booleans)
-            string_columns = [
-                col
-                for col in data.columns
-                if (
-                    pd.api.types.is_string_dtype(data[col])
-                    or pd.api.types.is_object_dtype(data[col])
-                )
-                and col not in bool_columns
-            ]
-
-            # Identify numeric columns that represent categorical data
-            numeric_categorical_columns = [
-                col
-                for col in data.columns
-                if pd.api.types.is_numeric_dtype(data[col])
-                and data[col].nunique()
-                < 10  # Parse as category if unique count < 10
-                and col
-                not in bool_columns  # Exclude already processed boolean columns
-            ]
-
-            if numeric_categorical_columns:
-                logger.warning(
-                    f"Found {len(numeric_categorical_columns)} numeric columns with unique values < 10, treating as categorical: {numeric_categorical_columns}. Converting to dummy variables."
-                )
-                for col in numeric_categorical_columns:
-                    dummy_info["original_categories"][col] = [
-                        float(i) for i in data[col].unique().tolist()
-                    ]
-                    dummy_info["original_dtypes"][col] = (
-                        "numeric categorical",
-                        data[col].dtype,
-                    )
-                    data[col] = data[col].astype("category")
-
-            if string_columns:
-                logger.info(
-                    f"Found {len(string_columns)} categorical columns to convert: {string_columns}"
+            else:
+                return (
+                    X_train,
+                    X_test,
                 )
 
-                # Store original categories and dtypes for categorical columns
-                for col in string_columns:
-                    dummy_info["original_dtypes"][col] = (
-                        "categorical",
-                        data[col].dtype,
-                    )
-                    dummy_info["original_categories"][col] = (
-                        data[col].unique().tolist()
-                    )
-
-            if string_columns or numeric_categorical_columns:
-                # Use pandas get_dummies to create one-hot encoded features
-                categorical_columns = (
-                    string_columns + numeric_categorical_columns
-                )
-                dummy_data = pd.get_dummies(
-                    data[categorical_columns],
-                    columns=categorical_columns,
-                    dtype="float64",
-                    drop_first=True,
-                )
-                for col in dummy_data.columns:
-                    dummy_data[col] = dummy_data[col].astype("float64")
-                logger.debug(
-                    f"Created {dummy_data.shape[1]} dummy variables from {len(categorical_columns)} categorical columns"
-                )
-
-                # Create mapping from original columns to their resulting dummy columns
-                for orig_col in categorical_columns:
-                    # Find all dummy columns that came from this original column
-                    related_dummies = [
-                        col
-                        for col in dummy_data.columns
-                        if col.startswith(f"{orig_col}_")
-                    ]
-                    dummy_info["column_mapping"][orig_col] = (
-                        related_dummies
-                        if len(related_dummies) > 0
-                        else [orig_col]
-                    )
-
-                # Drop original string and numeric categorical columns and join the dummy variables
-                numeric_data = data.drop(columns=categorical_columns)
-                logger.debug(
-                    f"Removed original string and numeric categorical columns, data shape: {numeric_data.shape}"
-                )
-
-                # Combine numeric columns with dummy variables
-                data = pd.concat([numeric_data, dummy_data], axis=1)
-                for col in data.columns:
-                    data[col] = data[col].astype("float64")
-                logger.info(
-                    f"Data shape after dummy variable conversion: {data.shape}"
-                )
         except Exception as e:
-            logger.error(f"Error during string column conversion: {str(e)}")
-            raise RuntimeError(
-                "Failed to convert string columns to dummy variables"
-            ) from e
-
-        if normalize:
-            logger.debug("Normalizing data")
-            try:
-                mean = data.mean(axis=0)
-                std = data.std(axis=0)
-
-                # Check for constant columns (std=0)
-                constant_cols = std[std == 0].index.tolist()
-                if constant_cols:
-                    logger.warning(
-                        f"Found constant columns (std=0): {constant_cols}"
-                    )
-                    # Handle constant columns by setting std to 1 to avoid division by zero
-                    for col in constant_cols:
-                        std[col] = 1
-
-                # Apply normalization
-                data = (data - mean) / std
-                logger.debug("Data normalized successfully")
-
-                # Store normalization parameters
-                normalization_params = {
-                    col: {"mean": mean[col], "std": std[col]}
-                    for col in data.columns
-                }
-
-                logger.debug(
-                    f"Normalization parameters: {normalization_params}"
-                )
-
-            except Exception as e:
-                logger.error(f"Error during data normalization: {str(e)}")
-                raise RuntimeError("Failed to normalize data") from e
-
-        if full_data and normalize:
-            logger.info("Returning full preprocessed dataset")
-            return data, dummy_info, normalization_params
-        elif full_data:
-            logger.info("Returning full preprocessed dataset")
-            return data, dummy_info
-        else:
-            logger.debug(
-                f"Splitting data with train_size={train_size}, test_size={test_size}"
-            )
-            try:
-                X_train, X_test = train_test_split(
-                    data,
-                    test_size=test_size,
-                    train_size=train_size,
-                    random_state=random_state,
-                )
-                logger.info(
-                    f"Data split into train ({X_train.shape}) and test ({X_test.shape}) sets"
-                )
-                if normalize:
-                    return (
-                        X_train,
-                        X_test,
-                        dummy_info,
-                        normalization_params,
-                    )
-                else:
-                    return X_train, X_test, dummy_info
-
-            except Exception as e:
-                logger.error(f"Error during train-test split: {str(e)}")
-                raise RuntimeError(
-                    "Failed to split data into train and test sets"
-                ) from e
-
-    except Exception as e:
-        logger.error(f"Error in preprocess_data: {str(e)}")
-        raise
-
-
-@validate_call(config=VALIDATE_CONFIG)
-def postprocess_imputations(
-    imputations: Dict[float, pd.DataFrame], dummy_info: Dict[str, Any]
-) -> Dict[float, pd.DataFrame]:
-    """Convert imputed bool and categorical dummy variables back to original data types.
-
-    This function reverses the encoding applied by preprocess_data,
-    converting dummy variables back to their original boolean or categorical forms.
-    For numeric categorical variables, values are rounded to the nearest valid category.
-
-    Args:
-        imputations: Dictionary mapping quantiles to DataFrames of imputed values
-        dummy_info: Dictionary containing information about dummy variable mappings
-            and original data types
-
-    Returns:
-        Dictionary mapping quantiles to DataFrames with original data types restored
-
-    Raises:
-        ValueError: If dummy_info is missing required information
-        RuntimeError: If conversion back to original types fails
-    """
-
-    def _get_reference_category(
-        orig_col: str, available_dummies: List[str], original_categories: List
-    ) -> Any:
-        """Identify the reference category that was dropped during dummy encoding."""
-        dummy_categories = []
-        for dummy_col in available_dummies:
-            # Remove the original column name and underscore prefix
-            category_part = dummy_col.replace(f"{orig_col}_", "", 1)
-            try:
-                # Try to convert back to original type if it was numeric
-                if category_part.replace(".", "").replace("-", "").isdigit():
-                    dummy_categories.append(float(category_part))
-                else:
-                    dummy_categories.append(category_part)
-            except:
-                dummy_categories.append(category_part)
-
-        # Find which original category is missing (the reference category)
-        reference_category = None
-        for cat in original_categories:
-            if cat not in dummy_categories:
-                reference_category = cat
-                break
-
-        return (
-            reference_category
-            if reference_category is not None
-            else original_categories[0]
-        )
-
-    logger.debug(
-        f"Post-processing {len(imputations)} quantile imputations with dummy_info keys: {dummy_info.keys()}"
-    )
-
-    try:
-        processed_imputations = {}
-
-        for quantile, df in imputations.items():
-            logger.debug(
-                f"Processing quantile {quantile} with shape {df.shape}"
-            )
-            df_processed = df.copy()
-
-            for orig_col, dummy_cols in dummy_info.get(
-                "column_mapping", {}
-            ).items():
-                if orig_col in dummy_info.get("original_dtypes", {}):
-                    orig_dtype_info = dummy_info["original_dtypes"][orig_col]
-
-                    # Extract dtype category and original pandas dtype
-                    if (
-                        isinstance(orig_dtype_info, tuple)
-                        and len(orig_dtype_info) == 2
-                    ):
-                        dtype_category, original_pandas_dtype = orig_dtype_info
-                    else:
-                        # Fallback for old format
-                        logger.warning(
-                            f"Unexpected dtype format for {orig_col}: {orig_dtype_info}"
-                        )
-                        continue
-
-                    # Check if this variable was imputed based on its type
-                    is_imputed = False
-                    if dtype_category == "bool":
-                        # For bool, check if original column is present
-                        is_imputed = orig_col in df_processed.columns
-                    elif dtype_category in [
-                        "categorical",
-                        "numeric categorical",
-                    ]:
-                        # For regular and numeric categorical, check if dummy columns are present
-                        available_dummies = [
-                            col
-                            for col in dummy_cols
-                            if col in df_processed.columns
-                        ]
-                        is_imputed = len(available_dummies) > 0
-
-                    if not is_imputed:
-                        logger.debug(
-                            f"Skipping {orig_col} - not in imputed variables"
-                        )
-                        continue
-
-                    logger.debug(
-                        f"Converting {orig_col} back to {dtype_category} with original dtype {original_pandas_dtype}"
-                    )
-
-                    if dtype_category == "bool":
-                        # Convert back to boolean from float (>0.5 threshold for discretization)
-                        df_processed[orig_col] = df_processed[orig_col] > 0.5
-                        # Convert to original boolean dtype
-                        df_processed[orig_col] = df_processed[orig_col].astype(
-                            original_pandas_dtype
-                        )
-                        logger.debug(
-                            f"Converted {orig_col} back to boolean type {original_pandas_dtype}"
-                        )
-
-                    elif dtype_category in [
-                        "categorical",
-                        "numeric categorical",
-                    ]:
-                        # Find available dummy columns
-                        available_dummies = [
-                            col
-                            for col in dummy_cols
-                            if col in df_processed.columns
-                        ]
-
-                        if len(available_dummies) > 0:
-                            logger.debug(
-                                f"Converting dummy columns back to categorical {orig_col}"
-                            )
-
-                            categories = dummy_info["original_categories"][
-                                orig_col
-                            ]
-                            dummy_subset = df_processed[available_dummies]
-
-                            # Identify the reference category (the one that was dropped)
-                            reference_category = _get_reference_category(
-                                orig_col, available_dummies, categories
-                            )
-
-                            # Create mapping from dummy columns to their categories
-                            category_mapping = {}
-                            for cat in categories:
-                                dummy_name = f"{orig_col}_{cat}"
-                                if dummy_name in available_dummies:
-                                    category_mapping[dummy_name] = cat
-
-                            # Find the dummy column with highest value for each row
-                            max_idx = dummy_subset.idxmax(axis=1)
-                            max_values = dummy_subset.max(axis=1)
-
-                            # If max dummy value is < 0.5, assign to reference category
-                            threshold = 0.5
-
-                            # Initialize with reference category
-                            df_processed[orig_col] = reference_category
-
-                            # Only assign to dummy categories where max value exceeds threshold
-                            high_confidence_mask = max_values >= threshold
-                            if high_confidence_mask.any():
-                                df_processed.loc[
-                                    high_confidence_mask, orig_col
-                                ] = max_idx[high_confidence_mask].map(
-                                    category_mapping
-                                )
-
-                            # Handle any NaN values that might occur from mapping
-                            nan_mask = df_processed[orig_col].isna()
-                            if nan_mask.any():
-                                df_processed.loc[nan_mask, orig_col] = (
-                                    reference_category
-                                )
-                                logger.warning(
-                                    f"Some values could not be mapped for {orig_col}, using reference category: {reference_category}"
-                                )
-
-                            logger.info(
-                                f"Assigned {high_confidence_mask.sum()} observations to dummy categories, "
-                                f"{(~high_confidence_mask).sum()} to reference category '{reference_category}'"
-                            )
-
-                            # Convert to original categorical type if needed
-                            try:
-                                if original_pandas_dtype != "object":
-                                    df_processed[orig_col] = df_processed[
-                                        orig_col
-                                    ].astype(original_pandas_dtype)
-                                    logger.debug(
-                                        f"Converted {orig_col} back to categorical type: {original_pandas_dtype}"
-                                    )
-                            except (ValueError, TypeError) as e:
-                                logger.warning(
-                                    f"Could not convert {orig_col} to {original_pandas_dtype}: {e}"
-                                )
-
-                            # Drop the dummy columns
-                            df_processed = df_processed.drop(
-                                columns=available_dummies
-                            )
-                            logger.debug(
-                                f"Converted dummy columns back to categorical {orig_col}"
-                            )
-                        else:
-                            logger.warning(
-                                f"No dummy columns found for categorical variable {orig_col}"
-                            )
-
-            processed_imputations[quantile] = df_processed
-            logger.debug(
-                f"Processed quantile {quantile}, final shape: {df_processed.shape}"
-            )
-
-        logger.info(
-            f"Successfully post-processed {len(processed_imputations)} quantile imputations"
-        )
-        return processed_imputations
-
-    except Exception as e:
-        logger.error(f"Error in postprocess_imputations: {str(e)}")
-        raise RuntimeError(
-            f"Failed to post-process imputations: {str(e)}"
-        ) from e
+            logger.error(f"Error in processing data: {str(e)}")
+            raise
