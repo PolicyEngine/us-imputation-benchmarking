@@ -26,6 +26,7 @@ from microimpute.config import (
 )
 from microimpute.comparisons import *
 from microimpute.visualizations import *
+from microimpute.utils.data import preprocess_data
 
 logger = logging.getLogger(__name__)
 ```
@@ -385,7 +386,7 @@ imputations, imputed_data, fitted_model, method_results_df = autoimpute(
     imputed_variables=imputed_variables,
     weight_col=weights[0],
     tune_hyperparameters=True,  # enable automated hyperparameter tuning
-    normalize_data=True,  # normalization
+    normalize_data=False,  # normalization
     verbose=False,
 )
 ```
@@ -548,18 +549,11 @@ This transformation is particularly valuable for wealth data, where values can s
 donor_data = scf_data[predictors + imputed_variables + weights]
 receiver_data = cps_data[predictors + household_weights]
 
-donor_data, normalizing_params = preprocess_data(donor_data[predictors + imputed_variables], normalize=True, full_data=True)
+donor_data = preprocess_data(donor_data[predictors + imputed_variables], normalize=False, full_data=True)
 donor_data[weights[0]] = scf_data[weights[0]]
-receiver_data, _ = preprocess_data(receiver_data[predictors], normalize=True, full_data=True)
+receiver_data = preprocess_data(receiver_data[predictors], normalize=False, full_data=True)
 receiver_data["household_weight"] = cps_data["household_weight"]
 receiver_data["household_net_income"] = cps_data["household_net_income"]
-
-mean = pd.Series(
-    {col: p["mean"] for col, p in normalizing_params.items()}
-)
-std = pd.Series(
-    {col: p["std"] for col, p in normalizing_params.items()}
-)
 
 from microimpute.models import *
 
@@ -595,9 +589,6 @@ quantreg_cps_imputed = impute_scf_to_cps(
     weights=weights,
 )
 
-quantreg_cps_imputed["networth"] = quantreg_cps_imputed["networth"].mul(std["networth"])
-quantreg_cps_imputed["networth"] = quantreg_cps_imputed["networth"].add(mean["networth"])
-
 weights_col = receiver_data["household_weight"].values
 weights_normalized = weights_col / weights_col.sum()
 quantreg_cps_imputed_weighted = quantreg_cps_imputed.sample(
@@ -617,9 +608,6 @@ ols_cps_imputed = impute_scf_to_cps(
     weights=weights,
 )
 
-ols_cps_imputed["networth"] = ols_cps_imputed["networth"].mul(std["networth"])
-ols_cps_imputed["networth"] = ols_cps_imputed["networth"].add(mean["networth"])
-
 ols_cps_imputed_weighted = ols_cps_imputed.sample(
     n=len(ols_cps_imputed),
     replace=True,
@@ -635,9 +623,6 @@ matching_cps_imputed = impute_scf_to_cps(
     imputed_variables=imputed_variables,
     weights=weights,
 )
-
-matching_cps_imputed["networth"] = matching_cps_imputed["networth"].mul(std["networth"])
-matching_cps_imputed["networth"] = matching_cps_imputed["networth"].add(mean["networth"])
 
 matching_cps_imputed_weighted = matching_cps_imputed.sample(
     n=len(matching_cps_imputed),
@@ -658,9 +643,6 @@ imputations = fitted_model.predict(X_test=receiver_data)
 
 qrf_cps_imputed = cps_data.copy()
 qrf_cps_imputed["networth"] = imputations[0.5]["networth"]
-
-qrf_cps_imputed["networth"] = qrf_cps_imputed["networth"].mul(std["networth"])
-qrf_cps_imputed["networth"] = qrf_cps_imputed["networth"].add(mean["networth"])
 
 qrf_cps_imputed_weighted = qrf_cps_imputed.sample(
     n=len(qrf_cps_imputed),

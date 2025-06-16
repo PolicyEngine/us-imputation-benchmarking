@@ -136,7 +136,7 @@ You can test the functionality of your newly implemented `NewModel` imputer mode
 
 ```python
 from sklearn.datasets import load_diabetes
-from microimpute.comparisons.data import preprocess_data
+from microimpute.utils.data import preprocess_data
 
 # Load the Diabetes dataset
 diabetes = load_diabetes()
@@ -150,7 +150,7 @@ imputed_variables = ["s1", "s4"]
 data = diabetes_df[predictors + imputed_variables]
 
 # Split into train and test
-X_train, X_test, dummy_info = preprocess_data(data)
+X_train, X_test = preprocess_data(data)
 
 # Initialize our new model
 new_imputer = NewModel()
