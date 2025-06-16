@@ -6,6 +6,7 @@ This directory contains tests for the MicroImpute package.
 
 The test suite is organized as follows:
 
+- **test_autoimpute.py**: Tests the autoimpute function which enables a complete model comparison, selection and imputation pipeline
 - **test_basic.py**: Basic functionality tests for the package
 - **test_quantile_comparison.py**: Tests the end-to-end quantile loss comparison workflow
   - Verifies the data preparation functions
@@ -22,13 +23,13 @@ The test suite is organized as follows:
 To run the tests, use the following command from the project root:
 
 ```bash
-python -m pytest us_imputation_benchmarking/tests/
+python -m pytest tests/
 ```
 
 For more verbose output:
 
 ```bash
-python -m pytest us_imputation_benchmarking/tests/ -v
+python -m pytest tests/ -v
 ```
 
 ## Model-Specific Tests
