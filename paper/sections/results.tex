@@ -21,11 +21,12 @@ Using Microimpute's $\texttt{autoimpute}$ function, we evaluate QRF against OLS,
 
     \item Tune the hyperparameters of those models that have a flexible set-up to the SCF data set, namely Matching\footnote{hyperparameters: $\texttt{dist\_fun}$, $\texttt{constrained}$, $\texttt{constr\_alg}$, $\texttt{k}$} and QRF\footnote{hyperparameters: $\texttt{n\_estimators}$, $\texttt{min\_samples\_split}$, $\texttt{min\_samples\_leaf}$, $\texttt{max\_features}$, $\texttt{bootstrap}$}
     \begin{enumerate}
-        \item SCF survey data weights (captured in the variable $\texttt{household\_weight}$) are passed into $\texttt{autoimpute}$ for sampling
+        \item Hyperparameter tunning is done through the $\texttt{optuna}$ package, which paralelizes hyperparameter searches to identify the combination of hyperparameters that minimizes the average quantile loss across all quantiles for the SCF dataset. 
     \end{enumerate}
 
     \item Impute wealth ($\texttt{networth}$) onto the SCF holdout set using each method with the remaining four folds as the training data
     \begin{enumerate}
+        \item SCF survey data weights (captured in the variable $\texttt{household\_weight}$) are passed into $\texttt{autoimpute}$ for sampling
         \item Demographic and financial variables available in both surveys behave as predictors, after being preprocess for consistent variable names and encoding: $\texttt{is\_female}$, $\texttt{age}$, $\texttt{race}$, $\texttt{own\_children\_in\_household}$, $\texttt{employment\_income}$, $\texttt{interest\_dividend\_income}$, $\texttt{pension\_income}$ 
         \item Each model performs imputation at 20 equally spaced quantiles
     \end{enumerate}
