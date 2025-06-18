@@ -3,3 +3,8 @@
     - Initialized changelog
   date: 2025-06-18 10:44:16
   version: 0.1.5
+- bump: minor
+  changes:
+    added:
+    - Fixed typo in qrf.py.
+  date: 2025-06-18 13:45:52
