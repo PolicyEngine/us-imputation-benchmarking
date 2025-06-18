@@ -1,0 +1,4 @@
+- bump: minor
+  changes:
+    added:
+    - Fixed typo in qrf.py. 
