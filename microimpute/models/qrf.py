@@ -86,7 +86,7 @@ class QRFResults(ImputerResults):
                     imputations[q] = imputed_df
             else:
                 self.logger.info(
-                    f"Predicting from a beta distribution centerd at quantile: {mean_quantile:.4f}"
+                    f"Predicting from a beta distribution centered at quantile: {mean_quantile:.4f}"
                 )
                 imputed_df = pd.DataFrame()
                 for variable in self.imputed_variables:
