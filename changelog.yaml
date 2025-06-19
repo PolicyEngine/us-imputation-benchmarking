@@ -8,3 +8,9 @@
     added:
     - Fixed typo in qrf.py.
   date: 2025-06-18 13:45:52
+- bump: patch
+  changes:
+    added:
+    - Suppressed warnings.
+    - Handled edge case in categorical encoding for receiver data.
+  date: 2025-06-19 14:45:02
