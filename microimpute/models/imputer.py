@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
 import pandas as pd
-from pydantic import validate_call
+from pydantic import SkipValidation, validate_call
 
 from microimpute.config import RANDOM_STATE, VALIDATE_CONFIG
 
@@ -151,7 +151,7 @@ class Imputer(ABC):
             ]
 
             if numeric_categorical_columns:
-                self.logger.warning(
+                self.logger.info(
                     f"Found {len(numeric_categorical_columns)} numeric columns with unique values < 10, treating as categorical: {numeric_categorical_columns}. Converting to dummy variables."
                 )
                 for col in numeric_categorical_columns:
@@ -162,6 +162,7 @@ class Imputer(ABC):
                         "numeric categorical",
                         data[col].dtype,
                     )
+                    data[col] = data[col].astype("float64")
                     data[col] = data[col].astype("category")
 
             if string_columns:
@@ -262,7 +263,7 @@ class Imputer(ABC):
         X_train: pd.DataFrame,
         predictors: List[str],
         imputed_variables: List[str],
-        weight_col: Optional[Union[str, np.array]] = None,
+        weight_col: Optional[Union[str, np.ndarray, pd.Series]] = None,
         **kwargs: Any,
     ) -> Any:  # Returns ImputerResults
         """Fit the model to the training data.
@@ -271,10 +272,7 @@ class Imputer(ABC):
             X_train: DataFrame containing the training data.
             predictors: List of column names to use as predictors.
             imputed_variables: List of column names to impute.
-            weight_col: Optional name of the column or column array containing
-                sampling weights. When provided, `X_train` will be sampled with
-                replacement using this column as selection probabilities
-                before fitting the model.
+            weight_col: Optional name of the column or column array/series containing sampling weights. When provided, `X_train` will be sampled with replacement using this column as selection probabilities before fitting the model.
             **kwargs: Additional model-specific parameters.
 
         Returns:
@@ -512,7 +510,7 @@ class ImputerResults(ABC):
             ]
 
             if numeric_categorical_columns:
-                self.logger.warning(
+                self.logger.info(
                     f"Found {len(numeric_categorical_columns)} numeric columns with unique values < 10, treating as categorical: {numeric_categorical_columns}. Converting to dummy variables."
                 )
                 for col in numeric_categorical_columns:
@@ -523,6 +521,7 @@ class ImputerResults(ABC):
                         "numeric categorical",
                         data[col].dtype,
                     )
+                    data[col] = data[col].astype("float64")
                     data[col] = data[col].astype("category")
 
             if string_columns:
@@ -873,6 +872,14 @@ class ImputerResults(ABC):
             ) from quantile_error
 
         X_test = self._preprocess_data_types(X_test, self.original_predictors)
+
+        for col in self.predictors:
+            if col not in X_test.columns:
+                self.logger.info(
+                    f"Predictor '{col}' not found in test data columns. \n"
+                    "Will create a dummy variable with 0.0 values for this column."
+                )
+                X_test[col] = np.zeros(len(X_test), dtype="float64")
 
         # Defer actual imputations to subclass with all parameters
         imputations = self._predict(X_test, quantiles, **kwargs)

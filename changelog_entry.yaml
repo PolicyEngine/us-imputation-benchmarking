@@ -1,0 +1,5 @@
+- bump: patch
+  changes:
+    added:
+    - Suppressed warnings.
+    - Handled edge case in categorical encoding for receiver data.
