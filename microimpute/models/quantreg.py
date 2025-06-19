@@ -1,14 +1,18 @@
 """Quantile Regression imputation model."""
 
+import warnings
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from pydantic import validate_call
+from statsmodels.tools.sm_exceptions import IterationLimitWarning
 
 from microimpute.config import VALIDATE_CONFIG
 from microimpute.models.imputer import Imputer, ImputerResults
+
+warnings.filterwarnings("ignore", category=IterationLimitWarning)
 
 
 class QuantRegResults(ImputerResults):

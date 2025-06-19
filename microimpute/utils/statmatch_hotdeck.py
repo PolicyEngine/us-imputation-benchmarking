@@ -25,11 +25,37 @@ mtc.ids: A matrix with two columns. Each row must contain the name or the index 
 
 z.vars: A character vector with the names of the variables available only in data.don that should be "donated" to data.rec.
 """
+import contextlib
+import os
+import sys
 
-import rpy2.robjects as ro
-from rpy2.robjects import conversion, default_converter, numpy2ri, pandas2ri
-from rpy2.robjects.conversion import localconverter
-from rpy2.robjects.packages import importr
+# Set the env var early, before rpy2 does anything
+os.environ["RPY2_USE_PYTHON_API"] = "0"
+
+
+@contextlib.contextmanager
+def suppress_rpy2_stderr():
+    """Temporarily suppress rpy2's stderr output (e.g., dlopen warnings)."""
+    stderr_fd = sys.stderr.fileno()
+    with os.fdopen(os.dup(stderr_fd), "w") as old_stderr:
+        with open(os.devnull, "w") as devnull:
+            os.dup2(devnull.fileno(), stderr_fd)
+        try:
+            yield
+        finally:
+            os.dup2(old_stderr.fileno(), stderr_fd)
+
+
+with suppress_rpy2_stderr():
+    import rpy2.robjects as ro
+    from rpy2.robjects import (
+        conversion,
+        default_converter,
+        numpy2ri,
+        pandas2ri,
+    )
+    from rpy2.robjects.conversion import localconverter
+    from rpy2.robjects.packages import importr
 
 
 @validate_call(config=VALIDATE_CONFIG)
