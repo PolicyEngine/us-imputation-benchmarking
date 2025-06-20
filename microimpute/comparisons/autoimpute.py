@@ -39,6 +39,7 @@ def autoimpute(
     hyperparameters: Optional[Dict[str, Dict[str, Any]]] = None,
     tune_hyperparameters: Optional[bool] = False,
     normalize_data: Optional[bool] = False,
+    impute_all: Optional[bool] = False,
     random_state: Optional[int] = RANDOM_STATE,
     train_size: Optional[float] = TRAIN_SIZE,
     k_folds: Optional[int] = 5,
@@ -68,16 +69,23 @@ def autoimpute(
             with model names as keys. Defaults to None and uses default model hyperparameters then.
         tune_hyperparameters : Whether to tune hyperparameters for the models.
             Defaults to False.
+        normalize_data : If True, will normalize the data before imputation.
+        impute_all : If True, will return final imputations for all models not
+            just the best one.
         random_state : Random seed for reproducibility
         train_size : Proportion of data to use for training in preprocessing
         k_folds : Number of folds for cross-validation. Defaults to 5.
         verbose : Whether to print detailed logs. Defaults to False.
 
     Returns:
-        A tuple containing:
-        - Dictionary mapping quantiles to DataFrames of imputed values
-        - The fitted imputation model (best performing)
-        - DataFrame with cross-validation performance metrics for all evaluated models
+        final_imputations_dict: Dictionary of dictionaries mapping each model
+            name to the imputed values per quantile (will only include the imputations of the best model if impute_all = False).
+        receiver_data: DataFrame with imputed variables added to the receiver
+            data
+        fitted_models_dict: Dictionary mapping each model name to the fitted
+            model object (will only include the best model if impute_all = False).
+        method_results_df: DataFrame containing cross-validation results
+            for each model, with quantiles as columns and models as indices.
 
     Raises:
         ValueError: If inputs are invalid (e.g., invalid quantiles, missing columns)
@@ -400,7 +408,7 @@ def autoimpute(
         # Fit the model
         if best_method == "QuantReg":
             # For QuantReg, we need to explicitly fit the quantile
-            fitted_model = model.fit(
+            best_fitted_model = model.fit(
                 training_data,
                 predictors,
                 imputed_variables,
@@ -413,7 +421,7 @@ def autoimpute(
                 or chosen_model.__name__ == "QRF"
             ) and tune_hyperparameters == True:
                 # For Matching and QRF, we need to pass the best hyperparameters
-                fitted_model = model.fit(
+                best_fitted_model = model.fit(
                     training_data,
                     predictors,
                     imputed_variables,
@@ -421,7 +429,7 @@ def autoimpute(
                     **hyperparams[chosen_model.__name__],
                 )
             else:
-                fitted_model = model.fit(
+                best_fitted_model = model.fit(
                     training_data,
                     predictors,
                     imputed_variables,
@@ -429,7 +437,7 @@ def autoimpute(
                 )
 
         # Predict with explicit quantiles
-        imputations = fitted_model.predict(
+        imputations = best_fitted_model.predict(
             imputing_data, quantiles=[imputation_q]
         )
 
@@ -478,10 +486,74 @@ def autoimpute(
             log.error(error_msg)
             raise ValueError(error_msg)
 
+        final_imputations_dict = {}
+        fitted_models_dict = {}
+        final_imputations_dict["best_method"] = final_imputations
+        fitted_models_dict["best_method"] = best_fitted_model
+
+        # Step 6: If impute_all is True, impute using the full dataset with all the remaining models
+        if impute_all:
+            log.info(
+                "Generating imputations for all the remaining models using the full dataset. "
+            )
+            for model_class in model_classes:
+                model_name = model_class.__name__
+                if model_name != best_method:
+                    log.info(f"Generating imputations with {model_name}. ")
+                    model = model_class()
+                    if model_name == "QuantReg":
+                        # For QuantReg, we need to explicitly fit the quantile
+                        fitted_model = model.fit(
+                            training_data,
+                            predictors,
+                            imputed_variables,
+                            weight_col=weight_col,
+                            quantiles=[imputation_q],
+                        )
+                    else:
+                        if (
+                            model_name == "Matching" or model_name == "QRF"
+                        ) and tune_hyperparameters == True:
+                            # For Matching and QRF, we need to pass the best hyperparameters
+                            fitted_model = model.fit(
+                                training_data,
+                                predictors,
+                                imputed_variables,
+                                weight_col=weight_col,
+                                **hyperparams[model_name],
+                            )
+                        else:
+                            fitted_model = model.fit(
+                                training_data,
+                                predictors,
+                                imputed_variables,
+                                weight_col=weight_col,
+                            )
+
+                    # Predict with explicit quantiles
+                    imputations = fitted_model.predict(
+                        imputing_data, quantiles=[imputation_q]
+                    )
+
+                    if normalize_data:
+                        unnormalized_imputations = {}
+                        for q, df in imputations.items():
+                            cols = df.columns  # the imputed variables
+                            df_unnorm = df.mul(std[cols], axis=1)  # × std
+                            df_unnorm = df_unnorm.add(
+                                mean[cols], axis=1
+                            )  # + mean
+                            unnormalized_imputations[q] = df_unnorm
+                        final_imputations = unnormalized_imputations
+                    else:
+                        final_imputations = imputations
+                    final_imputations_dict[model_name] = final_imputations
+                    fitted_models_dict[model_name] = fitted_model
+
         return (
-            final_imputations,
+            final_imputations_dict,
             receiver_data,
-            fitted_model,
+            fitted_models_dict,
             method_results_df,
         )
 
