@@ -26,19 +26,21 @@ def test_autoimpute_basic() -> None:
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["s1", "bool"]
 
-    model_imputations, imputed_data, fitted_models_dict, method_results_df = (
-        autoimpute(
-            donor_data=diabetes_donor,
-            receiver_data=diabetes_receiver,
-            predictors=predictors,
-            imputed_variables=imputed_variables,
-            hyperparameters={
-                "QRF": {"n_estimators": 100},
-                "Matching": {"constrained": True},
-            },
-            verbose=True,
-        )
+    results = autoimpute(
+        donor_data=diabetes_donor,
+        receiver_data=diabetes_receiver,
+        predictors=predictors,
+        imputed_variables=imputed_variables,
+        hyperparameters={
+            "QRF": {"n_estimators": 100},
+            "Matching": {"constrained": True},
+        },
+        verbose=True,
     )
+
+    model_imputations = results.imputations
+    imputed_data = results.receiver_data
+    method_results_df = results.cv_results
 
     # Check that the imputations is a dictionary of dataframes
     assert isinstance(model_imputations, dict)

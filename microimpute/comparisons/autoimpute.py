@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import joblib
 import pandas as pd
-from pydantic import validate_call
+from pydantic import BaseModel, ConfigDict, Field, validate_call
 from tqdm.auto import tqdm
 
 from microimpute.comparisons import *
@@ -25,6 +25,32 @@ from microimpute.evaluations import cross_validate_model
 from microimpute.models import *
 
 log = logging.getLogger(__name__)
+
+
+class AutoImputeResult(BaseModel):
+    """
+    Structured return value for `autoimpute`.
+
+    Attributes
+    ----------
+    imputations : Dict[str, Dict[float, pd.DataFrame]]
+        Mapping model name → {quantile → DataFrame of imputed cols}.
+        By default this contains only the best model unless `impute_all=True`.
+    receiver_data : pd.DataFrame
+        Copy of the receiver data with the median-quantile imputations of the best performing model attached.
+    fitted_models : Dict[str, Any]
+        Mapping model name → fitted Imputer instance.
+    cv_results : pd.DataFrame
+        Cross-validation loss table (models as index, quantiles as columns)
+        with an extra “mean_loss” column.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    imputations: Dict[str, Dict[float, pd.DataFrame]] = Field(...)
+    receiver_data: pd.DataFrame = Field(...)
+    fitted_models: Dict[str, Any] = Field(...)
+    cv_results: pd.DataFrame = Field(...)
 
 
 @validate_call(config=VALIDATE_CONFIG)
@@ -44,7 +70,7 @@ def autoimpute(
     train_size: Optional[float] = TRAIN_SIZE,
     k_folds: Optional[int] = 5,
     verbose: Optional[bool] = False,
-) -> tuple[dict[float, pd.DataFrame], "Imputer", pd.DataFrame]:
+) -> AutoImputeResult:
     """Automatically select and apply the best imputation model.
 
     This function evaluates multiple imputation methods using cross-validation
@@ -78,14 +104,11 @@ def autoimpute(
         verbose : Whether to print detailed logs. Defaults to False.
 
     Returns:
-        final_imputations_dict: Dictionary of dictionaries mapping each model
-            name to the imputed values per quantile (will only include the imputations of the best model if impute_all = False).
-        receiver_data: DataFrame with imputed variables added to the receiver
-            data
-        fitted_models_dict: Dictionary mapping each model name to the fitted
-            model object (will only include the best model if impute_all = False).
-        method_results_df: DataFrame containing cross-validation results
-            for each model, with quantiles as columns and models as indices.
+        AutoImputeResult: A structured result containing:
+            - imputations: Dict mapping model name(s) to quantile → DataFrame of imputed values
+            - receiver_data: DataFrame with imputed values added
+            - fitted_models: Dict mapping model name to ImputerResults instance(s)
+            - cv_results: DataFrame of cross-validation losses for each model
 
     Raises:
         ValueError: If inputs are invalid (e.g., invalid quantiles, missing columns)
@@ -550,11 +573,11 @@ def autoimpute(
                     final_imputations_dict[model_name] = final_imputations
                     fitted_models_dict[model_name] = fitted_model
 
-        return (
-            final_imputations_dict,
-            receiver_data,
-            fitted_models_dict,
-            method_results_df,
+        return AutoImputeResult(
+            imputations=final_imputations_dict,
+            receiver_data=receiver_data,
+            fitted_models=fitted_models_dict,
+            cv_results=method_results_df,
         )
 
     except ValueError as e:
