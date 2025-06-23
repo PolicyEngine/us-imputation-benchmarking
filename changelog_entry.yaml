@@ -1,5 +1,0 @@
-
-- bump: patch
-  changes:
-    changed:
-    - Making autoimpute return imputations for all models.
