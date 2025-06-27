@@ -3,7 +3,7 @@
 A package for benchmarking different imputation methods using microdata.
 """
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 # Import imputation utilities
 from microimpute.comparisons.autoimpute import autoimpute

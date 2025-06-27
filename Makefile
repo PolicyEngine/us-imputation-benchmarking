@@ -26,14 +26,9 @@ clean:
 	rm -rf dist/ build/ *.egg-info/
 	rm -rf docs/_build/
 
-paper: main
-
-main: $(wildcard paper/sections/**/*.tex) $(wildcard paper/bibliography/*.bib) paper/main.tex paper/macros.tex
-	cd paper && \
-	BIBINPUTS=./bibliography pdflatex main && \
-	BIBINPUTS=./bibliography bibtex main && \
-	pdflatex main && \
-	pdflatex main
-
-clean-paper:
-	rm -f paper/*.aux paper/*.bbl paper/*.blg paper/*.log paper/*.out paper/*.toc paper/main.pdf paper/sections/**/*.aux
+changelog:
+	build-changelog changelog.yaml --output changelog.yaml --update-last-date --start-from 0.1.5 --append-file changelog_entry.yaml
+	build-changelog changelog.yaml --org PolicyEngine --repo microimpute --output CHANGELOG.md --template .github/changelog_template.md
+	bump-version changelog.yaml pyproject.toml
+	rm changelog_entry.yaml || true
+	touch changelog_entry.yaml

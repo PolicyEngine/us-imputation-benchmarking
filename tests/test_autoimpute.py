@@ -26,7 +26,7 @@ def test_autoimpute_basic() -> None:
     predictors = ["age", "sex", "bmi", "bp"]
     imputed_variables = ["s1", "bool"]
 
-    imputations, imputed_data, fitted_model, method_results_df = autoimpute(
+    results = autoimpute(
         donor_data=diabetes_donor,
         receiver_data=diabetes_receiver,
         predictors=predictors,
@@ -38,13 +38,18 @@ def test_autoimpute_basic() -> None:
         verbose=True,
     )
 
+    model_imputations = results.imputations
+    imputed_data = results.receiver_data
+    method_results_df = results.cv_results
+
     # Check that the imputations is a dictionary of dataframes
-    assert isinstance(imputations, dict)
-    for quantile, df in imputations.items():
-        assert isinstance(df, pd.DataFrame)
-        # Check that the imputed variables are in the dataframe
-        for var in imputed_variables:
-            assert var in df.columns
+    assert isinstance(model_imputations, dict)
+    for model, imputations in model_imputations.items():
+        for q, df in imputations.items():
+            assert isinstance(df, pd.DataFrame)
+            # Check that the imputed variables are in the dataframe
+            for var in imputed_variables:
+                assert var in df.columns
 
     # Check that the method_results_df has the expected structure
     assert isinstance(method_results_df, pd.DataFrame)
@@ -55,7 +60,9 @@ def test_autoimpute_basic() -> None:
 
     quantiles = [q for q in method_results_df.columns if isinstance(q, float)]
 
-    imputations[0.5].to_csv("autoimpute_bestmodel_median_imputations.csv")
+    model_imputations["best_method"][0.5].to_csv(
+        "autoimpute_bestmodel_median_imputations.csv"
+    )
     imputed_data.to_csv("autoimpute_bestmodel_imputed_dataset.csv")
 
     method_results_df.to_csv("autoimpute_model_comparison_results.csv")

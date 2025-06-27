@@ -1,0 +1,21 @@
+- changes:
+    added:
+    - Initialized changelog
+  date: 2025-06-18 10:44:16
+  version: 0.1.5
+- bump: minor
+  changes:
+    added:
+    - Fixed typo in qrf.py.
+  date: 2025-06-18 13:45:52
+- bump: patch
+  changes:
+    added:
+    - Suppressed warnings.
+    - Handled edge case in categorical encoding for receiver data.
+  date: 2025-06-19 14:45:02
+- bump: patch
+  changes:
+    changed:
+    - Making autoimpute return imputations for all models.
+  date: 2025-06-23 14:45:18
