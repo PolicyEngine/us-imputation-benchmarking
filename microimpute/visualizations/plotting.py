@@ -135,6 +135,8 @@ class PerformanceResults:
             fig.update_xaxes(showgrid=False, zeroline=False)
             fig.update_yaxes(showgrid=False, zeroline=False)
 
+            fig = add_logo_to_fig(fig)
+
             if save_path:
                 try:
                     logger.info(f"Saving plot to {save_path}")
@@ -457,6 +459,8 @@ class MethodComparisonResults:
             fig.update_xaxes(showgrid=False, zeroline=False)
             fig.update_yaxes(showgrid=False, zeroline=False)
 
+            fig = add_logo_to_fig(fig)
+
             # Save or show the plot
             if save_path:
                 try:
@@ -631,3 +635,43 @@ def method_comparison_results(
         quantiles=quantiles,
         data_format=data_format,
     )
+
+
+def add_logo_to_fig(
+    fig,
+    logo_url=None,
+    x_position=1.05,
+    y_position=-0.15,
+    sizex=0.15,
+    sizey=0.15,
+):
+    """
+    Add a logo to the bottom right corner of a plotly figure.
+
+    Parameters:
+    - fig: plotly figure object
+    - logo_url: URL or path to the logo image
+    - x_position: x position (0-1, where 1 is right edge)
+    - y_position: y position (0-1, where 0 is bottom edge)
+    - sizex: width of logo as fraction of plot
+    - sizey: height of logo as fraction of plot
+    """
+
+    if logo_url is None:
+        logo_url = "/Users/movil1/Desktop/PYTHONJOBS/PolicyEngine/microimpute/docs/logo.png"
+
+    fig.add_layout_image(
+        dict(
+            source=logo_url,
+            xref="paper",
+            yref="paper",
+            x=x_position,
+            y=y_position,
+            sizex=sizex,
+            sizey=sizey,
+            xanchor="right",
+            yanchor="bottom",
+            layer="above",
+        )
+    )
+    return fig
